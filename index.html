@@ -1,0 +1,1057 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Animación de Partículas Interactiva</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/fontsource-geist@5.0.0/index.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/fontsource-geist-mono@5.0.0/index.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/framer-motion@10.16.4/dist/framer-motion.js"></script>
+    <style>
+        :root {
+            --background: oklch(0.145 0 0);
+            --foreground: oklch(0.985 0 0);
+            --primary: oklch(0.985 0 0);
+            --primary-foreground: oklch(0.205 0 0);
+            --muted: oklch(0.269 0 0);
+            --muted-foreground: oklch(0.708 0 0);
+            --border: oklch(0.269 0 0);
+            --radius: 0.625rem;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--background);
+            color: var(--foreground);
+            overflow: hidden;
+        }
+
+        .gradient-bg {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+        }
+
+        .gradient-analyze {
+            background: linear-gradient(135deg, 
+                rgba(168, 85, 247, 0.3) 0%, 
+                rgba(236, 72, 153, 0.4) 50%, 
+                rgba(79, 70, 229, 0.5) 100%);
+            filter: blur(80px);
+            transform: scale(1.25);
+        }
+
+        .gradient-think {
+            background: linear-gradient(135deg, 
+                rgba(45, 212, 191, 0.3) 0%, 
+                rgba(6, 182, 212, 0.4) 50%, 
+                rgba(30, 64, 175, 0.5) 100%);
+            filter: blur(80px);
+            transform: scale(1.25);
+        }
+
+        .gradient-connect {
+            background: linear-gradient(135deg, 
+                rgba(52, 211, 153, 0.3) 0%, 
+                rgba(34, 197, 94, 0.4) 50%, 
+                rgba(15, 23, 42, 0.5) 100%);
+            filter: blur(80px);
+            transform: scale(1.25);
+        }
+
+        .gradient-intense {
+            background: linear-gradient(135deg, 
+                rgba(239, 68, 68, 0.3) 0%, 
+                rgba(249, 115, 22, 0.4) 50%, 
+                rgba(15, 23, 42, 0.5) 100%);
+            filter: blur(80px);
+            transform: scale(1.25);
+        }
+
+        .gradient-deep {
+            background: linear-gradient(135deg, 
+                rgba(49, 46, 129, 0.4) 0%, 
+                rgba(88, 28, 135, 0.5) 50%, 
+                rgba(139, 92, 246, 0.6) 100%);
+            filter: blur(80px);
+            transform: scale(1.25);
+        }
+
+        .gradient-transfer {
+            background: linear-gradient(135deg, 
+                rgba(251, 191, 36, 0.3) 0%, 
+                rgba(249, 115, 22, 0.4) 50%, 
+                rgba(15, 23, 42, 0.5) 100%);
+            filter: blur(80px);
+            transform: scale(1.25);
+        }
+
+        canvas {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .control-panel {
+            position: absolute;
+            bottom: 4rem;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 50;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .tabs-list {
+            display: inline-flex;
+            height: 2.25rem;
+            width: fit-content;
+            align-items: center;
+            justify-content: center;
+            border-radius: var(--radius);
+            padding: 3px;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            gap: 0.5rem;
+        }
+
+        .tabs-trigger {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.375rem;
+            border-radius: calc(var(--radius) - 2px);
+            border: 1px solid transparent;
+            padding: 0.25rem 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            white-space: nowrap;
+            color: rgba(255, 255, 255, 0.8);
+            background: transparent;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .tabs-trigger:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .tabs-trigger[data-state="active"] {
+            background: white;
+            color: black;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+        }
+
+        .main-title {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 40;
+            pointer-events: none;
+        }
+
+        .main-title h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            color: white;
+            text-align: center;
+            letter-spacing: -0.02em;
+        }
+
+        @media (min-width: 768px) {
+            .main-title h1 {
+                font-size: 4.5rem;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .main-title h1 {
+                font-size: 6rem;
+            }
+        }
+
+        .letter {
+            display: inline-block;
+            opacity: 0;
+            transform: translateY(20px);
+            animation: letterFadeIn 0.5s ease forwards;
+        }
+
+        @keyframes letterFadeIn {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .mode-indicator {
+            position: absolute;
+            top: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .mode-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: white;
+            animation: pulse 2s ease infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.5;
+                transform: scale(1.2);
+            }
+        }
+
+        .shape-selector {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .shape-btn {
+            width: 2.5rem;
+            height: 2.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: calc(var(--radius) - 2px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.05);
+            color: rgba(255, 255, 255, 0.8);
+            cursor: pointer;
+            transition: all 0.15s ease;
+            font-size: 1.25rem;
+        }
+
+        .shape-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .shape-btn[data-active="true"] {
+            background: white;
+            color: black;
+            border-color: white;
+        }
+
+        .stats-panel {
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            z-index: 50;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: var(--radius);
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.6);
+            min-width: 150px;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .stat-value {
+            color: white;
+            font-weight: 600;
+        }
+
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: var(--background);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            transition: opacity 0.5s ease;
+        }
+
+        .loading-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .tooltip {
+            position: relative;
+        }
+
+        .tooltip::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 0.25rem 0.5rem;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            font-size: 0.75rem;
+            border-radius: 4px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+            margin-bottom: 0.5rem;
+        }
+
+        .tooltip:hover::after {
+            opacity: 1;
+        }
+
+        .footer-link {
+            position: absolute;
+            bottom: 1.5rem;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 50;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .footer-link:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateX(-50%) translateY(-2px);
+        }
+
+        .footer-link svg {
+            width: 16px;
+            height: 16px;
+            transition: transform 0.2s ease;
+        }
+
+        .footer-link:hover svg {
+            transform: translateX(2px);
+        }
+    </style>
+</head>
+<body>
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <div class="relative w-full h-screen overflow-hidden">
+        <div class="gradient-bg gradient-analyze" id="gradientBg"></div>
+        <canvas id="animationCanvas"></canvas>
+
+        <div class="mode-indicator">
+            <div class="mode-dot"></div>
+            <span id="modeText">Analyze</span>
+        </div>
+
+        <div class="stats-panel">
+            <div class="stat-item">
+                <span>Partículas</span>
+                <span class="stat-value" id="particleCount">0</span>
+            </div>
+            <div class="stat-item">
+                <span>FPS</span>
+                <span class="stat-value" id="fpsCount">0</span>
+            </div>
+            <div class="stat-item">
+                <span>Conexiones</span>
+                <span class="stat-value" id="connectionCount">0</span>
+            </div>
+        </div>
+
+        <div class="main-title">
+            <h1 id="mainTitle">
+                <span class="letter" style="animation-delay: 0ms">A</span>
+                <span class="letter" style="animation-delay: 30ms">n</span>
+                <span class="letter" style="animation-delay: 60ms">a</span>
+                <span class="letter" style="animation-delay: 90ms">l</span>
+                <span class="letter" style="animation-delay: 120ms">y</span>
+                <span class="letter" style="animation-delay: 150ms">z</span>
+                <span class="letter" style="animation-delay: 180ms">e</span>
+            </h1>
+        </div>
+
+        <div class="control-panel">
+            <div class="shape-selector">
+                <button class="shape-btn tooltip" data-tooltip="Círculo" data-shape="circle" data-active="true">●</button>
+                <button class="shape-btn tooltip" data-tooltip="Triángulo" data-shape="triangle">▲</button>
+                <button class="shape-btn tooltip" data-tooltip="Cuadrado" data-shape="square">■</button>
+                <button class="shape-btn tooltip" data-tooltip="Rombo" data-shape="diamond">◆</button>
+            </div>
+
+            <div class="tabs-list">
+                <button class="tabs-trigger" data-mode="analyze" data-state="active">Analyze</button>
+                <button class="tabs-trigger" data-mode="think">Think</button>
+                <button class="tabs-trigger" data-mode="connect">Connect</button>
+                <button class="tabs-trigger" data-mode="intense">Intense</button>
+                <button class="tabs-trigger" data-mode="deep">Deep</button>
+                <button class="tabs-trigger" data-mode="transfer">Transfer</button>
+            </div>
+        </div>
+
+        <a href="https://bigbangsocial.com/" target="_blank" rel="noopener noreferrer" class="footer-link">
+            <span>Let's add this to your brand: Contact us</span>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+            </svg>
+        </a>
+    </div>
+
+    <script>
+        // Configuración global
+        const config = {
+            mode: 'analyze',
+            shape: 'circle',
+            particleSpacing: 8,
+            particles: [],
+            connections: [],
+            waves: [],
+            animationId: null,
+            lastFrameTime: 0,
+            frameCount: 0,
+            fps: 0
+        };
+
+        // Elementos DOM
+        const canvas = document.getElementById('animationCanvas');
+        const ctx = canvas.getContext('2d');
+        const gradientBg = document.getElementById('gradientBg');
+        const mainTitle = document.getElementById('mainTitle');
+        const modeText = document.getElementById('modeText');
+        const particleCountEl = document.getElementById('particleCount');
+        const fpsCountEl = document.getElementById('fpsCount');
+        const connectionCountEl = document.getElementById('connectionCount');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+
+        // Ajustar tamaño del canvas
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            initializeParticles();
+        }
+
+        // Dibujar formas
+        function drawShape(x, y, size, shape, opacity = 1) {
+            ctx.fillStyle = `rgba(255, 255, 255, ${opacity})`;
+            ctx.beginPath();
+
+            switch (shape) {
+                case 'circle':
+                    ctx.arc(x, y, size, 0, Math.PI * 2);
+                    break;
+                case 'triangle':
+                    ctx.moveTo(x, y - size);
+                    ctx.lineTo(x - size * 0.866, y + size * 0.5);
+                    ctx.lineTo(x + size * 0.866, y + size * 0.5);
+                    ctx.closePath();
+                    break;
+                case 'square':
+                    ctx.rect(x - size, y - size, size * 2, size * 2);
+                    break;
+                case 'diamond':
+                    ctx.moveTo(x, y - size);
+                    ctx.lineTo(x + size, y);
+                    ctx.lineTo(x, y + size);
+                    ctx.lineTo(x - size, y);
+                    ctx.closePath();
+                    break;
+            }
+
+            ctx.fill();
+        }
+
+        // Inicializar partículas
+        function initializeParticles() {
+            config.particles = [];
+            const cols = Math.ceil(canvas.width / config.particleSpacing);
+            const rows = Math.ceil(canvas.height / config.particleSpacing);
+            const centerCol = cols / 2;
+            const centerRow = rows / 2;
+
+            for (let row = 0; row < rows; row++) {
+                for (let col = 0; col < cols; col++) {
+                    const gridX = col * config.particleSpacing + config.particleSpacing / 2;
+                    const gridY = row * config.particleSpacing + config.particleSpacing / 2;
+                    const dx = col - centerCol;
+                    const dy = row - centerRow;
+                    const distanceFromCenter = Math.sqrt(dx * dx + dy * dy);
+                    const angle = Math.atan2(dy, dx);
+
+                    config.particles.push({
+                        gridX,
+                        gridY,
+                        opacity: Math.random(),
+                        targetOpacity: Math.random(),
+                        size: Math.random() * 1.5 + 1,
+                        targetSize: Math.random() * 1.5 + 1,
+                        flickerSpeed: Math.random() * 0.08 + 0.05,
+                        scale: 1,
+                        targetScale: 1,
+                        distanceFromCenter,
+                        angle,
+                        col,
+                        row,
+                        baseSize: Math.random() * 1.5 + 1
+                    });
+                }
+            }
+
+            particleCountEl.textContent = config.particles.length;
+        }
+
+        // Animación Analyze - Partículas con conexiones
+        function animateAnalyze() {
+            const currentTime = Date.now();
+
+            // Crear conexiones
+            if (config.connections.length < 8 && Math.random() < 0.01) {
+                const startIndex = Math.floor(Math.random() * config.particles.length);
+                let endIndex = Math.floor(Math.random() * config.particles.length);
+                while (endIndex === startIndex) {
+                    endIndex = Math.floor(Math.random() * config.particles.length);
+                }
+
+                const start = config.particles[startIndex];
+                const end = config.particles[endIndex];
+
+                config.connections.push({
+                    startIndex,
+                    endIndex,
+                    progress: 0,
+                    speed: Math.random() * 0.008 + 0.008,
+                    opacity: Math.random() * 0.3 + 0.2
+                });
+            }
+
+            // Actualizar conexiones
+            config.connections = config.connections.filter(conn => {
+                conn.progress += conn.speed;
+                return conn.progress < 1;
+            });
+
+            connectionCountEl.textContent = config.connections.length;
+
+            // Dibujar conexiones
+            config.connections.forEach(conn => {
+                const start = config.particles[conn.startIndex];
+                const end = config.particles[conn.endIndex];
+
+                if (!start || !end) return;
+
+                const currentX = start.gridX + (end.gridX - start.gridX) * conn.progress;
+                const currentY = start.gridY + (end.gridY - start.gridY) * conn.progress;
+
+                ctx.strokeStyle = `rgba(255, 255, 255, ${conn.opacity * (1 - conn.progress * 0.5)})`;
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(start.gridX, start.gridY);
+                ctx.lineTo(currentX, currentY);
+                ctx.stroke();
+
+                ctx.fillStyle = `rgba(255, 255, 255, ${conn.opacity * 1.5})`;
+                ctx.beginPath();
+                ctx.arc(currentX, currentY, 2, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // Actualizar partículas
+            config.particles.forEach(particle => {
+                if (Math.random() < 0.08) {
+                    particle.targetOpacity = Math.random();
+                    particle.targetSize = Math.random() * 2 + 0.5;
+                    particle.targetScale = 1 + Math.random() * 0.15;
+                }
+
+                particle.opacity += (particle.targetOpacity - particle.opacity) * (particle.flickerSpeed * 0.6);
+                particle.size += (particle.targetSize - particle.size) * (particle.flickerSpeed * 0.6);
+                particle.scale += (particle.targetScale - particle.scale) * (particle.flickerSpeed * 0.6);
+
+                const finalSize = particle.size * particle.scale;
+                drawShape(particle.gridX, particle.gridY, finalSize, config.shape, particle.opacity);
+            });
+        }
+
+        // Animación Think - Ondas desde el centro
+        function animateThink() {
+            const currentTime = Date.now();
+            const maxDistance = Math.max(canvas.width, canvas.height) * 0.8;
+
+            // Crear ondas
+            if (config.waves.length === 0 || currentTime - config.lastWaveTime >= 800) {
+                config.waves.push({ startTime: currentTime });
+                config.lastWaveTime = currentTime;
+            }
+
+            // Actualizar ondas
+            config.waves = config.waves.filter(wave => {
+                const waveAge = (currentTime - wave.startTime) / 1000;
+                const waveRadius = waveAge * 30;
+                return waveRadius < maxDistance + 20;
+            });
+
+            // Actualizar partículas
+            config.particles.forEach(particle => {
+                let maxOpacity = 0;
+                let maxScale = 0;
+
+                config.waves.forEach(wave => {
+                    const waveAge = (currentTime - wave.startTime) / 1000;
+                    const waveRadius = waveAge * 30;
+                    const distanceDiff = Math.abs(particle.distanceFromCenter - waveRadius);
+                    const waveWidth = 15;
+
+                    if (distanceDiff < waveWidth) {
+                        let waveIntensity = 0;
+                        if (distanceDiff < waveWidth * 0.3) {
+                            waveIntensity = distanceDiff / (waveWidth * 0.3);
+                        } else if (distanceDiff < waveWidth * 0.7) {
+                            waveIntensity = 1;
+                        } else {
+                            waveIntensity = 1 - (distanceDiff - waveWidth * 0.7) / (waveWidth * 0.3);
+                        }
+
+                        const distanceFade = Math.max(0, 1 - particle.distanceFromCenter / (maxDistance * 1.5));
+                        const effectiveIntensity = waveIntensity * distanceFade;
+                        maxOpacity = Math.max(maxOpacity, effectiveIntensity);
+                        maxScale = Math.max(maxScale, effectiveIntensity * 2);
+                    }
+                });
+
+                particle.targetOpacity = maxOpacity;
+                particle.targetScale = maxScale;
+
+                particle.opacity += (particle.targetOpacity - particle.opacity) * (particle.flickerSpeed * 0.6);
+                particle.scale += (particle.targetScale - particle.scale) * (particle.flickerSpeed * 0.6);
+
+                const finalSize = particle.size * particle.scale;
+                drawShape(particle.gridX, particle.gridY, finalSize, config.shape, particle.opacity);
+            });
+        }
+
+        // Animación Connect - Ondas horizontales
+        function animateConnect() {
+            const currentTime = Date.now();
+            const maxDistance = canvas.width / config.particleSpacing;
+
+            // Crear ondas
+            if (config.waves.length === 0 || currentTime - config.lastWaveTime >= 1200) {
+                config.waves.push({ startTime: currentTime });
+                config.lastWaveTime = currentTime;
+            }
+
+            // Actualizar ondas
+            config.waves = config.waves.filter(wave => {
+                const waveAge = (currentTime - wave.startTime) / 1000;
+                const wavePosition = waveAge * 35;
+                return wavePosition < maxDistance + 20;
+            });
+
+            // Actualizar partículas
+            config.particles.forEach(particle => {
+                let maxOpacity = 0;
+                let maxScale = 0;
+
+                config.waves.forEach(wave => {
+                    const waveAge = (currentTime - wave.startTime) / 1000;
+                    const wavePosition = waveAge * 35;
+                    const distanceDiff = Math.abs(particle.col - wavePosition);
+                    const waveWidth = 40;
+
+                    if (distanceDiff < waveWidth) {
+                        let waveIntensity = 0;
+                        if (distanceDiff < waveWidth * 0.3) {
+                            waveIntensity = distanceDiff / (waveWidth * 0.3);
+                        } else if (distanceDiff < waveWidth * 0.7) {
+                            waveIntensity = 1;
+                        } else {
+                            waveIntensity = 1 - (distanceDiff - waveWidth * 0.7) / (waveWidth * 0.3);
+                        }
+
+                        const distanceFade = Math.max(0, 1 - particle.col / (maxDistance * 1.5));
+                        const effectiveIntensity = waveIntensity * distanceFade;
+                        maxOpacity = Math.max(maxOpacity, effectiveIntensity);
+                        maxScale = Math.max(maxScale, effectiveIntensity * 2);
+                    }
+                });
+
+                particle.targetOpacity = maxOpacity;
+                particle.targetScale = maxScale;
+
+                particle.opacity += (particle.targetOpacity - particle.opacity) * (particle.flickerSpeed * 0.6);
+                particle.scale += (particle.targetScale - particle.scale) * (particle.flickerSpeed * 0.6);
+
+                const finalSize = particle.size * particle.scale;
+                drawShape(particle.gridX, particle.gridY, finalSize, config.shape, particle.opacity);
+            });
+        }
+
+        // Animación Intense - Múltiples centros
+        function animateIntense() {
+            const currentTime = Date.now();
+            const maxDistance = Math.max(canvas.width, canvas.height) * 0.8;
+
+            const centers = [
+                { x: 0, y: canvas.height / 2 },
+                { x: canvas.width, y: canvas.height / 2 },
+                { x: canvas.width / 2, y: 0 },
+                { x: canvas.width / 2, y: canvas.height }
+            ];
+
+            // Crear ondas desde centros activos
+            if (currentTime - config.lastWaveTime >= 1500) {
+                const centerIndex = Math.floor(Math.random() * centers.length);
+                config.waves.push({ 
+                    startTime: currentTime, 
+                    center: centers[centerIndex],
+                    isPowerPulse: Math.random() < 0.3
+                });
+                config.lastWaveTime = currentTime;
+            }
+
+            // Actualizar ondas
+            config.waves = config.waves.filter(wave => {
+                const waveAge = (currentTime - wave.startTime) / 1000;
+                const speed = wave.isPowerPulse ? 120 : 30;
+                const waveRadius = waveAge * speed;
+                return waveRadius < maxDistance + 20;
+            });
+
+            // Actualizar partículas
+            config.particles.forEach(particle => {
+                let maxOpacity = 0;
+                let maxScale = 0;
+
+                config.waves.forEach(wave => {
+                    const dx = particle.gridX - wave.center.x;
+                    const dy = particle.gridY - wave.center.y;
+                    const distanceFromCenter = Math.sqrt(dx * dx + dy * dy);
+
+                    const waveAge = (currentTime - wave.startTime) / 1000;
+                    const speed = wave.isPowerPulse ? 120 : 30;
+                    const waveRadius = waveAge * speed;
+                    const distanceDiff = Math.abs(distanceFromCenter - waveRadius);
+                    const waveWidth = wave.isPowerPulse ? 30 : 15;
+
+                    if (distanceDiff < waveWidth) {
+                        let waveIntensity = 0;
+                        if (distanceDiff < waveWidth * 0.3) {
+                            waveIntensity = distanceDiff / (waveWidth * 0.3);
+                        } else if (distanceDiff < waveWidth * 0.7) {
+                            waveIntensity = 1;
+                        } else {
+                            waveIntensity = 1 - (distanceDiff - waveWidth * 0.7) / (waveWidth * 0.3);
+                        }
+
+                        const distanceFade = Math.max(0, 1 - distanceFromCenter / (maxDistance * 1.5));
+                        const intensityMultiplier = wave.isPowerPulse ? 1.5 : 1;
+                        const effectiveIntensity = waveIntensity * distanceFade * intensityMultiplier;
+                        maxOpacity = Math.max(maxOpacity, effectiveIntensity);
+                        maxScale = Math.max(maxScale, effectiveIntensity * (wave.isPowerPulse ? 3 : 2));
+                    }
+                });
+
+                particle.targetOpacity = maxOpacity;
+                particle.targetScale = maxScale;
+
+                particle.opacity += (particle.targetOpacity - particle.opacity) * (particle.flickerSpeed * 0.6);
+                particle.scale += (particle.targetScale - particle.scale) * (particle.flickerSpeed * 0.6);
+
+                const finalSize = particle.size * particle.scale;
+                drawShape(particle.gridX, particle.gridY, finalSize, config.shape, particle.opacity);
+            });
+        }
+
+        // Animación Deep - Espiral
+        function animateDeep() {
+            const currentTime = Date.now();
+            const maxDistance = Math.max(canvas.width, canvas.height) * 0.8;
+
+            // Crear ondas
+            if (config.waves.length === 0 || currentTime - config.lastWaveTime >= 800) {
+                config.waves.push({ startTime: currentTime });
+                config.lastWaveTime = currentTime;
+            }
+
+            // Actualizar ondas
+            config.waves = config.waves.filter(wave => {
+                const waveAge = (currentTime - wave.startTime) / 1000;
+                const waveRadius = waveAge * 30;
+                return waveRadius < maxDistance + 20;
+            });
+
+            // Actualizar partículas
+            config.particles.forEach(particle => {
+                let maxOpacity = 0;
+                let maxScale = 0;
+
+                config.waves.forEach(wave => {
+                    const waveAge = (currentTime - wave.startTime) / 1000;
+                    const waveRadius = waveAge * 30;
+                    const spiralRotation = (waveRadius / maxDistance) * Math.PI * 4;
+                    const effectiveAngle = particle.angle + spiralRotation;
+                    const spiralDistance = particle.distanceFromCenter + Math.sin(effectiveAngle * 3) * 5;
+                    const distanceDiff = Math.abs(spiralDistance - waveRadius);
+                    const waveWidth = 15;
+
+                    if (distanceDiff < waveWidth) {
+                        let waveIntensity = 0;
+                        if (distanceDiff < waveWidth * 0.3) {
+                            waveIntensity = distanceDiff / (waveWidth * 0.3);
+                        } else if (distanceDiff < waveWidth * 0.7) {
+                            waveIntensity = 1;
+                        } else {
+                            waveIntensity = 1 - (distanceDiff - waveWidth * 0.7) / (waveWidth * 0.3);
+                        }
+
+                        const distanceFade = 1 - particle.distanceFromCenter / (maxDistance * 1.5);
+                        const effectiveIntensity = waveIntensity * Math.max(0.3, distanceFade);
+                        maxOpacity = Math.max(maxOpacity, effectiveIntensity);
+                        maxScale = Math.max(maxScale, effectiveIntensity * 2);
+                    }
+                });
+
+                particle.targetOpacity = maxOpacity;
+                particle.targetScale = maxScale;
+
+                particle.opacity += (particle.targetOpacity - particle.opacity) * (particle.flickerSpeed * 0.6);
+                particle.scale += (particle.targetScale - particle.scale) * (particle.flickerSpeed * 0.6);
+
+                const finalSize = particle.size * particle.scale;
+                drawShape(particle.gridX, particle.gridY, finalSize, config.shape, particle.opacity);
+            });
+        }
+
+        // Animación Transfer - Ondas verticales
+        function animateTransfer() {
+            const currentTime = Date.now();
+            const maxDistance = canvas.height / config.particleSpacing;
+
+            // Crear ondas
+            if (config.waves.length === 0 || currentTime - config.lastWaveTime >= 800) {
+                const direction = Math.random() > 0.5 ? 'top' : 'bottom';
+                const colOffset = Math.floor(Math.random() * 3);
+                config.waves.push({ startTime: currentTime, direction, colOffset });
+                config.lastWaveTime = currentTime;
+            }
+
+            // Actualizar ondas
+            config.waves = config.waves.filter(wave => {
+                const waveAge = (currentTime - wave.startTime) / 1000;
+                const wavePosition = waveAge * 60;
+                return wavePosition < maxDistance + 5;
+            });
+
+            // Actualizar partículas
+            config.particles.forEach(particle => {
+                let maxOpacity = 0;
+                let maxScale = 0;
+
+                config.waves.forEach(wave => {
+                    const waveAge = (currentTime - wave.startTime) / 1000;
+                    const wavePosition = waveAge * 60;
+                    const affectedRow = (particle.row + wave.colOffset) % Math.ceil(canvas.height / config.particleSpacing);
+                    const isRowAffected = particle.row === affectedRow || Math.abs(particle.row - affectedRow) <= 1;
+
+                    if (!isRowAffected) return;
+
+                    const distanceFromWave = wave.direction === 'top'
+                        ? Math.abs(particle.row - wavePosition)
+                        : Math.abs(maxDistance - particle.row - wavePosition);
+
+                    const waveWidth = 40;
+
+                    if (distanceFromWave < waveWidth) {
+                        let waveIntensity = 0;
+                        if (distanceFromWave < waveWidth * 0.3) {
+                            waveIntensity = distanceFromWave / (waveWidth * 0.3);
+                        } else if (distanceFromWave < waveWidth * 0.7) {
+                            waveIntensity = 1;
+                        } else {
+                            waveIntensity = 1 - (distanceFromWave - waveWidth * 0.7) / (waveWidth * 0.3);
+                        }
+
+                        const rowIntensity = particle.row === affectedRow ? 1 : 0.3;
+                        const effectiveIntensity = waveIntensity * rowIntensity;
+                        maxOpacity = Math.max(maxOpacity, effectiveIntensity);
+                        maxScale = Math.max(maxScale, effectiveIntensity * 2);
+                    }
+                });
+
+                particle.targetOpacity = maxOpacity;
+                particle.targetScale = maxScale;
+
+                particle.opacity += (particle.targetOpacity - particle.opacity) * (particle.flickerSpeed * 0.6);
+                particle.scale += (particle.targetScale - particle.scale) * (particle.flickerSpeed * 0.6);
+
+                const finalSize = particle.size * particle.scale;
+                drawShape(particle.gridX, particle.gridY, finalSize, config.shape, particle.opacity);
+            });
+        }
+
+        // Loop de animación principal
+        function animate(timestamp) {
+            // Calcular FPS
+            config.frameCount++;
+            if (timestamp - config.lastFrameTime >= 1000) {
+                config.fps = config.frameCount;
+                config.frameCount = 0;
+                config.lastFrameTime = timestamp;
+                fpsCountEl.textContent = config.fps;
+            }
+
+            // Limpiar canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Ejecutar animación según modo
+            switch (config.mode) {
+                case 'analyze':
+                    animateAnalyze();
+                    break;
+                case 'think':
+                    animateThink();
+                    break;
+                case 'connect':
+                    animateConnect();
+                    break;
+                case 'intense':
+                    animateIntense();
+                    break;
+                case 'deep':
+                    animateDeep();
+                    break;
+                case 'transfer':
+                    animateTransfer();
+                    break;
+            }
+
+            config.animationId = requestAnimationFrame(animate);
+        }
+
+        // Actualizar título con animación
+        function updateTitle(text) {
+            const letters = text.split('');
+            mainTitle.innerHTML = letters.map((letter, index) => 
+                `<span class="letter" style="animation-delay: ${index * 30}ms">${letter === ' ' ? '&nbsp;' : letter}</span>`
+            ).join('');
+        }
+
+        // Cambiar modo
+        function setMode(mode) {
+            config.mode = mode;
+            config.connections = [];
+            config.waves = [];
+            config.lastWaveTime = Date.now();
+
+            // Actualizar UI
+            document.querySelectorAll('.tabs-trigger').forEach(btn => {
+                btn.setAttribute('data-state', btn.getAttribute('data-mode') === mode ? 'active' : 'inactive');
+            });
+
+            // Actualizar gradiente
+            gradientBg.className = `gradient-bg gradient-${mode}`;
+
+            // Actualizar texto
+            modeText.textContent = mode.charAt(0).toUpperCase() + mode.slice(1);
+            updateTitle(mode.charAt(0).toUpperCase() + mode.slice(1));
+        }
+
+        // Cambiar forma
+        function setShape(shape) {
+            config.shape = shape;
+
+            document.querySelectorAll('.shape-btn').forEach(btn => {
+                btn.setAttribute('data-active', btn.getAttribute('data-shape') === shape);
+            });
+        }
+
+        // Event Listeners
+        window.addEventListener('resize', resizeCanvas);
+
+        document.querySelectorAll('.tabs-trigger').forEach(btn => {
+            btn.addEventListener('click', () => {
+                setMode(btn.getAttribute('data-mode'));
+            });
+        });
+
+        document.querySelectorAll('.shape-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                setShape(btn.getAttribute('data-shape'));
+            });
+        });
+
+        // Inicializar
+        resizeCanvas();
+        setMode('analyze');
+        setShape('circle');
+
+        // Ocultar overlay de carga
+        setTimeout(() => {
+            loadingOverlay.classList.add('hidden');
+        }, 500);
+
+        // Iniciar animación
+        config.lastFrameTime = performance.now();
+        config.animationId = requestAnimationFrame(animate);
+    </script>
+</body>
+</html>
+
