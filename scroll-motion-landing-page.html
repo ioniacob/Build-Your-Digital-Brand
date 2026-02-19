@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Solo Builders Community</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @tailwind base;
+        @tailwind components;
+        @tailwind utilities;
+        
+        :root {
+            --foreground-rgb: 255, 255, 255;
+            --background-start-rgb: 0, 0, 0;
+            --background-end-rgb: 0, 0, 0;
+            --primary: 255, 77, 0;
+            --primary-foreground: 0, 0, 0;
+        }
+        
+        body {
+            color: rgb(var(--foreground-rgb));
+            background: rgb(var(--background-start-rgb));
+        }
+        
+        html {
+            scroll-behavior: smooth;
+        }
+        
+        .overflow-y-auto::-webkit-scrollbar {
+            display: none;
+        }
+        
+        .overflow-y-auto {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        
+        .dark {
+            --primary: 255, 77, 0;
+            --primary-foreground: 0, 0, 0;
+        }
+        
+        @layer utilities {
+            .noise {
+                background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+            }
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        .font-inter {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+<body class="font-inter bg-black text-white">
+    <div class="h-screen overflow-hidden bg-black relative">
+        <!-- Canvas background -->
+        <div class="absolute inset-0 z-10">
+            <canvas id="squares-canvas" class="w-full h-full border-none block" style="background: #060606;"></canvas>
+        </div>
+        
+        <!-- Navigation -->
+        <nav class="fixed top-0 right-0 h-screen flex flex-col justify-center z-30 p-4">
+            <button class="w-3 h-3 rounded-full my-2 transition-all bg-gray-600 hover:bg-white"></button>
+            <button class="w-3 h-3 rounded-full my-2 transition-all bg-gray-600 hover:bg-white"></button>
+            <button class="w-3 h-3 rounded-full my-2 transition-all bg-gray-600 hover:bg-white"></button>
+            <button class="w-3 h-3 rounded-full my-2 transition-all bg-gray-600 hover:bg-white"></button>
+            <button class="w-3 h-3 rounded-full my-2 transition-all bg-white scale-150"></button>
+        </nav>
+        
+        <!-- Progress bar -->
+        <div class="fixed top-0 left-0 right-0 h-0.5 bg-white origin-left z-30" style="transform: scaleX(0);"></div>
+        
+        <!-- Content -->
+        <div class="relative z-20 h-full overflow-y-auto snap-y snap-mandatory">
+            <section id="hero" class="relative h-screen w-full snap-start flex flex-col justify-center p-8 md:p-16 lg:p-24">
+                <div class="mb-12">
+                    <div class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors text-white border-white">S1: Feb 15</div>
+                </div>
+                <h2 class="text-4xl md:text-6xl lg:text-[5rem] xl:text-[6rem] font-bold leading-[1.1] tracking-tight max-w-4xl">It's time to build.</h2>
+                <div class="mt-8">
+                    <button class="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium border h-11 rounded-md px-8 text-[#FF4D00] bg-transparent border-[#FF4D00] hover:bg-[#FF4D00] hover:text-black transition-colors">apply to s5</button>
+                </div>
+            </section>
+            
+            <section id="about" class="relative h-screen w-full snap-start flex flex-col justify-center p-8 md:p-16 lg:p-24">
+                <h2 class="text-4xl md:text-6xl lg:text-[5rem] xl:text-[6rem] font-bold leading-[1.1] tracking-tight max-w-4xl">Why Us?</h2>
+                <p class="text-lg md:text-xl lg:text-2xl max-w-2xl mt-6 text-neutral-400">We provide resources, mentorship, and a supportive network to help you grow your projects.</p>
+            </section>
+            
+            <section id="features" class="relative h-screen w-full snap-start flex flex-col justify-center p-8 md:p-16 lg:p-24">
+                <h2 class="text-4xl md:text-6xl lg:text-[5rem] xl:text-[6rem] font-bold leading-[1.1] tracking-tight max-w-4xl">What We Offer</h2>
+                <p class="text-lg md:text-xl lg:text-2xl max-w-2xl mt-6 text-neutral-400">Access to expert advice, networking opportunities, and cutting-edge tools to accelerate your growth.</p>
+            </section>
+            
+            <section id="testimonials" class="relative h-screen w-full snap-start flex flex-col justify-center p-8 md:p-16 lg:p-24">
+                <h2 class="text-4xl md:text-6xl lg:text-[5rem] xl:text-[6rem] font-bold leading-[1.1] tracking-tight max-w-4xl">Success Stories</h2>
+                <p class="text-lg md:text-xl lg:text-2xl max-w-2xl mt-6 text-neutral-400">Hear from solo builders who have transformed their side projects into thriving businesses.</p>
+            </section>
+            
+            <section id="join" class="relative h-screen w-full snap-start flex flex-col justify-center p-8 md:p-16 lg:p-24">
+                <h2 class="text-4xl md:text-6xl lg:text-[5rem] xl:text-[6rem] font-bold leading-[1.1] tracking-tight max-w-4xl">Get Started</h2>
+                <p class="text-lg md:text-xl lg:text-2xl max-w-2xl mt-6 text-neutral-400">Ready to take your side project to the next level? Join our community today and start building your future.</p>
+                <div class="mt-8">
+                    <button class="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium border h-11 rounded-md px-8 text-[#FF4D00] bg-transparent border-[#FF4D00] hover:bg-[#FF4D00] hover:text-black transition-colors">Join Now</button>
+                </div>
+            </section>
+        </div>
+        
+        <!-- Footer Container - Bottom Center -->
+        <div class="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 pointer-events-auto flex flex-col items-center gap-2">
+            <!-- Main Footer Link -->
+            <a
+                href="https://bigbangsocial.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="group inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 backdrop-blur-2xl border border-white/10 text-[0.875rem] text-white/80 hover:text-white transition-all duration-200 hover:-translate-y-0.5 hover:bg-white/10 hover:border-white/20"
+            >
+                <span>Let's add this to your brand: Contact us</span>
+                <svg
+                    class="w-4 h-4 transition-transform duration-200 group-hover:translate-x-1"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                >
+                    <path d="M5 12h14M12 5l7 7-7 7" />
+                </svg>
+            </a>
+            
+            <!-- Disclaimer Link - Below Main Footer -->
+            <a
+                href="https://v0.app/templates/scroll-motion-landing-page-mgyurrbLm2P"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="text-[0.75rem] text-white/40 hover:text-white/60 transition-colors duration-200"
+            >
+                Design origin and disclaimer
+            </a>
+        </div>
+    </div>
+    
+    <script>
+        // Squares background animation
+        const canvas = document.getElementById('squares-canvas');
+        const ctx = canvas.getContext('2d');
+        
+        let gridOffset = { x: 0, y: 0 };
+        const squareSize = 40;
+        const speed = 0.5;
+        const borderColor = '#333';
+        const hoverFillColor = '#222';
+        
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        
+        function drawGrid() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            const startX = Math.floor(gridOffset.x / squareSize) * squareSize;
+            const startY = Math.floor(gridOffset.y / squareSize) * squareSize;
+            
+            ctx.lineWidth = 0.5;
+            
+            for (let x = startX; x < canvas.width + squareSize; x += squareSize) {
+                for (let y = startY; y < canvas.height + squareSize; y += squareSize) {
+                    const squareX = x - (gridOffset.x % squareSize);
+                    const squareY = y - (gridOffset.y % squareSize);
+                    
+                    ctx.strokeStyle = borderColor;
+                    ctx.strokeRect(squareX, squareY, squareSize, squareSize);
+                }
+            }
+            
+            // Gradient overlay
+            const gradient = ctx.createRadialGradient(
+                canvas.width / 2,
+                canvas.height / 2,
+                0,
+                canvas.width / 2,
+                canvas.height / 2,
+                Math.sqrt(Math.pow(canvas.width, 2) + Math.pow(canvas.height, 2)) / 2
+            );
+            gradient.addColorStop(0, 'rgba(6, 6, 6, 0)');
+            gradient.addColorStop(1, '#060606');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+        
+        function updateAnimation() {
+            gridOffset.x = (gridOffset.x - speed + squareSize) % squareSize;
+            gridOffset.y = (gridOffset.y - speed + squareSize) % squareSize;
+            drawGrid();
+            requestAnimationFrame(updateAnimation);
+        }
+        
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+        updateAnimation();
+    </script>
+</body>
+</html>
+
