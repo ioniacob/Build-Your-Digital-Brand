@@ -1,0 +1,543 @@
+# 🧪 EXPERIMENTAL WORKFLOW - FOR TESTING PURPOSES
+# Custom security scanning implementation
+# For production use, consider these proven alternatives:
+# - github/codeql-action (GitHub's official security analysis)
+# - github/super-linter (comprehensive linting and security)
+# - snyk/actions (specialized security scanning)
+# - trufflesecurity/trufflehog (secret detection)
+
+name: Security Vulnerability Scanning
+
+on:
+  push:
+    branches: [ main, master, develop ]
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - '**.js'
+      - '**.html'
+      - '.github/workflows/**'
+  pull_request:
+    branches: [ main, master ]
+  schedule:
+    # Run security scans daily at 6 AM UTC
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    inputs:
+      scan_type:
+        description: 'Type of security scan'
+        required: true
+        default: 'full'
+        type: choice
+        options:
+          - full
+          - dependencies
+          - code
+          - secrets
+          - config
+      severity_threshold:
+        description: 'Minimum severity to report'
+        required: false
+        default: 'medium'
+        type: choice
+        options:
+          - critical
+          - high
+          - medium
+          - low
+
+env:
+  SCAN_TIMEOUT: 30
+  SEVERITY_THRESHOLD: ${{ github.event.inputs.severity_threshold || 'medium' }}
+
+jobs:
+  # Job 1: Dependency Security Scan
+  dependency-security:
+    name: Dependency Security Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      vulnerabilities_found: ${{ steps.dep_scan.outputs.vulnerabilities }}
+      critical_count: ${{ steps.dep_scan.outputs.critical }}
+      high_count: ${{ steps.dep_scan.outputs.high }}
+      scan_status: ${{ steps.dep_scan.outputs.status }}
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Install security scanning tools
+      run: |
+        npm install -g npm-audit-html retire snyk
+    
+    - name: Run npm audit
+      id: dep_scan
+      run: |
+        echo "Running dependency security scan..."
+        
+        if [ -f package.json ]; then
+          # Run npm audit and generate reports
+          npm audit --json > npm-audit-raw.json 2>/dev/null || true
+          npm audit --audit-level=${{ env.SEVERITY_THRESHOLD }} > npm-audit.txt 2>/dev/null || true
+          
+          # Generate HTML report
+          npm-audit-html --output npm-audit-report.html 2>/dev/null || true
+          
+          # Parse vulnerabilities
+          if [ -f npm-audit-raw.json ]; then
+            CRITICAL=$(jq '[.vulnerabilities | to_entries[] | select(.value.severity == "critical")] | length' npm-audit-raw.json 2>/dev/null || echo "0")
+            HIGH=$(jq '[.vulnerabilities | to_entries[] | select(.value.severity == "high")] | length' npm-audit-raw.json 2>/dev/null || echo "0")
+            MODERATE=$(jq '[.vulnerabilities | to_entries[] | select(.value.severity == "moderate")] | length' npm-audit-raw.json 2>/dev/null || echo "0")
+            LOW=$(jq '[.vulnerabilities | to_entries[] | select(.value.severity == "low")] | length' npm-audit-raw.json 2>/dev/null || echo "0")
+            
+            TOTAL=$((CRITICAL + HIGH + MODERATE + LOW))
+            
+            echo "vulnerabilities=$TOTAL" >> $GITHUB_OUTPUT
+            echo "critical=$CRITICAL" >> $GITHUB_OUTPUT
+            echo "high=$HIGH" >> $GITHUB_OUTPUT
+            echo "moderate=$MODERATE" >> $GITHUB_OUTPUT
+            echo "low=$LOW" >> $GITHUB_OUTPUT
+            
+            if [ "$TOTAL" -gt 0 ]; then
+              echo "status=vulnerabilities_found" >> $GITHUB_OUTPUT
+              echo "::warning::Found $TOTAL security vulnerabilities: $CRITICAL critical, $HIGH high, $MODERATE moderate, $LOW low"
+            else
+              echo "status=secure" >> $GITHUB_OUTPUT
+              echo "✅ No security vulnerabilities found"
+            fi
+          else
+            echo "vulnerabilities=0" >> $GITHUB_OUTPUT
+            echo "status=no_package_json" >> $GITHUB_OUTPUT
+            echo "No package.json found"
+          fi
+        fi
+    
+    - name: Run Retire.js scan
+      run: |
+        echo "Running Retire.js scan for JavaScript vulnerabilities..."
+        
+        if command -v retire >/dev/null 2>&1; then
+          retire --outputformat json --outputpath retire-report.json --exitwith 0 || true
+          
+          if [ -f retire-report.json ]; then
+            RETIRE_VULNS=$(jq '[.data[]?.vulnerabilities | length] | add' retire-report.json 2>/dev/null || echo "0")
+            echo "Retire.js found $RETIRE_VULNS JavaScript vulnerabilities"
+          fi
+        fi
+    
+    - name: Generate dependency security report
+      run: |
+        cat > dependency-security-report.md << 'EOF'
+        # Dependency Security Scan Report
+        
+        **Scan Date**: $(date -u +"%Y-%m-%d %H:%M UTC")
+        **Scan Type**: Dependency Security Analysis
+        **Severity Threshold**: ${{ env.SEVERITY_THRESHOLD }}
+        
+        ## Vulnerability Summary
+        
+        | Severity | Count | Status |
+        |----------|-------|--------|
+        | Critical | ${{ steps.dep_scan.outputs.critical }} | ${{ steps.dep_scan.outputs.critical > 0 && '❌' || '✅' }} |
+        | High | ${{ steps.dep_scan.outputs.high }} | ${{ steps.dep_scan.outputs.high > 0 && '❌' || '✅' }} |
+        | Moderate | ${{ steps.dep_scan.outputs.moderate }} | ${{ steps.dep_scan.outputs.moderate > 0 && '⚠️' || '✅' }} |
+        | Low | ${{ steps.dep_scan.outputs.low }} | ${{ steps.dep_scan.outputs.low > 0 && 'ℹ️' || '✅' }} |
+        
+        **Total Vulnerabilities**: ${{ steps.dep_scan.outputs.vulnerabilities }}
+        
+        ## Recommendations
+        
+        ${{ steps.dep_scan.outputs.critical > 0 && '🔴 **CRITICAL**: Address critical vulnerabilities immediately' || '' }}
+        ${{ steps.dep_scan.outputs.high > 0 && '🟠 **HIGH**: Fix high-severity vulnerabilities as soon as possible' || '' }}
+        ${{ steps.dep_scan.outputs.moderate > 0 && '🟡 **MODERATE**: Update dependencies with moderate vulnerabilities' || '' }}
+        ${{ steps.dep_scan.outputs.vulnerabilities == 0 && '✅ No security vulnerabilities found - excellent!' || '' }}
+        
+        EOF
+
+  # Job 2: Code Security Analysis
+  code-security:
+    name: Code Security Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    outputs:
+      issues_found: ${{ steps.code_scan.outputs.issues }}
+      severity_summary: ${{ steps.code_scan.outputs.severity_summary }}
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+    
+    - name: Install code security tools
+      run: |
+        npm install -g eslint eslint-plugin-security semgrep
+    
+    - name: Run ESLint security scan
+      id: code_scan
+      run: |
+        echo "Running code security analysis..."
+        
+        # Create ESLint security config
+        cat > .eslintrc-security.json << 'EOF'
+        {
+          "extends": ["plugin:security/recommended"],
+          "plugins": ["security"],
+          "rules": {
+            "security/detect-object-injection": "warn",
+            "security/detect-eval-with-expression": "error",
+            "security/detect-non-literal-regexp": "warn",
+            "security/detect-unsafe-regex": "error",
+            "security/detect-buffer-noassert": "error",
+            "security/detect-child-process": "warn",
+            "security/detect-disable-mustache-escape": "error",
+            "security/detect-no-csrf-before-method-override": "error",
+            "security/detect-non-literal-fs-filename": "warn",
+            "security/detect-non-literal-require": "warn",
+            "security/detect-possible-timing-attacks": "warn",
+            "security/detect-pseudoRandomBytes": "error"
+          }
+        }
+        EOF
+        
+        SECURITY_ISSUES=0
+        CRITICAL_ISSUES=0
+        HIGH_ISSUES=0
+        MODERATE_ISSUES=0
+        LOW_ISSUES=0
+        
+        # Scan JavaScript files
+        for file in $(find . -name "*.js" -not -path "./node_modules/*" -not -path "./.git/*"); do
+          if [ -f "$file" ]; then
+            echo "Scanning $file..."
+            
+            # Run ESLint security scan
+            if eslint "$file" -c .eslintrc-security.json --format json -o eslint-security-report.json 2>/dev/null; then
+              echo "✅ $file passed security scan"
+            else
+              echo "::warning::$file has security issues"
+              
+              # Count issues by severity
+              ERRORS=$(jq '[.[]?.messages[]? | select(.severity == 2)] | length' eslint-security-report.json 2>/dev/null || echo "0")
+              WARNINGS=$(jq '[.[]?.messages[]? | select(.severity == 1)] | length' eslint-security-report.json 2>/dev/null || echo "0")
+              
+              SECURITY_ISSUES=$((SECURITY_ISSUES + ERRORS + WARNINGS))
+              HIGH_ISSUES=$((HIGH_ISSUES + ERRORS))
+              LOW_ISSUES=$((LOW_ISSUES + WARNINGS))
+            fi
+          fi
+        done
+        
+        # Run Semgrep for additional security patterns
+        if command -v semgrep >/dev/null 2>&1; then
+          echo "Running Semgrep security scan..."
+          semgrep --config=auto --json --output=semgrep-report.json . || true
+          
+          if [ -f semgrep-report.json ]; then
+            SEMGREP_ISSUES=$(jq '[.results[]? | select(.extra.severity == "ERROR")] | length' semgrep-report.json 2>/dev/null || echo "0")
+            SECURITY_ISSUES=$((SECURITY_ISSUES + SEMGREP_ISSUES))
+            CRITICAL_ISSUES=$((CRITICAL_ISSUES + SEMGREP_ISSUES))
+          fi
+        fi
+        
+        echo "issues=$SECURITY_ISSUES" >> $GITHUB_OUTPUT
+        echo "critical=$CRITICAL_ISSUES" >> $GITHUB_OUTPUT
+        echo "high=$HIGH_ISSUES" >> $GITHUB_OUTPUT
+        echo "moderate=$MODERATE_ISSUES" >> $GITHUB_OUTPUT
+        echo "low=$LOW_ISSUES" >> $GITHUB_OUTPUT
+        
+        SEVERITY_SUMMARY=""
+        if [ "$CRITICAL_ISSUES" -gt 0 ]; then
+          SEVERITY_SUMMARY="$SEVERITY_SUMMARY\n- 🔴 Critical: $CRITICAL_ISSUES"
+        fi
+        if [ "$HIGH_ISSUES" -gt 0 ]; then
+          SEVERITY_SUMMARY="$SEVERITY_SUMMARY\n- 🟠 High: $HIGH_ISSUES"
+        fi
+        if [ "$MODERATE_ISSUES" -gt 0 ]; then
+          SEVERITY_SUMMARY="$SEVERITY_SUMMARY\n- 🟡 Moderate: $MODERATE_ISSUES"
+        fi
+        if [ "$LOW_ISSUES" -gt 0 ]; then
+          SEVERITY_SUMMARY="$SEVERITY_SUMMARY\n- 🔵 Low: $LOW_ISSUES"
+        fi
+        
+        echo "severity_summary<<EOF" >> $GITHUB_OUTPUT
+        echo -e "$SEVERITY_SUMMARY" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+        
+        echo "Code Security Issues: $SECURITY_ISSUES (Critical: $CRITICAL_ISSUES, High: $HIGH_ISSUES, Moderate: $MODERATE_ISSUES, Low: $LOW_ISSUES)"
+    
+    - name: Generate code security report
+      run: |
+        cat > code-security-report.md << 'EOF'
+        # Code Security Analysis Report
+        
+        **Scan Date**: $(date -u +"%Y-%m-%d %H:%M UTC")
+        **Scan Type**: Static Code Analysis
+        **Tools Used**: ESLint Security Plugin, Semgrep
+        
+        ## Security Issues Summary
+        
+        | Severity | Count | Status |
+        |----------|-------|--------|
+        | Critical | ${{ steps.code_scan.outputs.critical }} | ${{ steps.code_scan.outputs.critical > 0 && '❌' || '✅' }} |
+        | High | ${{ steps.code_scan.outputs.high }} | ${{ steps.code_scan.outputs.high > 0 && '❌' || '✅' }} |
+        | Moderate | ${{ steps.code_scan.outputs.moderate }} | ${{ steps.code_scan.outputs.moderate > 0 && '⚠️' || '✅' }} |
+        | Low | ${{ steps.code_scan.outputs.low }} | ${{ steps.code_scan.outputs.low > 0 && 'ℹ️' || '✅' }} |
+        
+        **Total Issues**: ${{ steps.code_scan.outputs.issues }}
+        
+        ## Common Security Issues Found
+        
+        ${{ steps.code_scan.outputs.critical > 0 && '🔴 **CRITICAL**: Code injection vulnerabilities detected' || '' }}
+        ${{ steps.code_scan.outputs.high > 0 && '🟠 **HIGH**: Unsafe coding patterns identified' || '' }}
+        ${{ steps.code_scan.outputs.moderate > 0 && '🟡 **MODERATE**: Potential security weaknesses found' || '' }}
+        ${{ steps.code_scan.outputs.issues == 0 && '✅ No security issues found in code analysis' || '' }}
+        
+        EOF
+
+  # Job 3: Secret Scanning
+  secret-scanning:
+    name: Secret Scanning
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      secrets_found: ${{ steps.secret_scan.outputs.secrets }}
+      scan_status: ${{ steps.secret_scan.outputs.status }}
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Full history for better secret detection
+    
+    - name: Install secret scanning tools
+      run: |
+        # Install truffleHog
+        pip install truffleHog
+    
+    - name: Run secret scan
+      id: secret_scan
+      run: |
+        echo "Running secret scanning..."
+        
+        # Run truffleHog scan
+        truffleHog --json --regex --entropy=False . > secrets-report.json 2>/dev/null || true
+        
+        if [ -f secrets-report.json ]; then
+          SECRETS_COUNT=$(jq 'length' secrets-report.json 2>/dev/null || echo "0")
+          echo "secrets=$SECRETS_COUNT" >> $GITHUB_OUTPUT
+          
+          if [ "$SECRETS_COUNT" -gt 0 ]; then
+            echo "status=secrets_found" >> $GITHUB_OUTPUT
+            echo "::error::Found $SECRETS_COUNT potential secrets in repository"
+            
+            # List found secrets (without exposing actual values)
+            jq -r '.[].path' secrets-report.json | sort | uniq > secret-files.txt
+            echo "Files with potential secrets:"
+            cat secret-files.txt
+          else
+            echo "status=clean" >> $GITHUB_OUTPUT
+            echo "✅ No secrets detected"
+          fi
+        else
+          echo "secrets=0" >> $GITHUB_OUTPUT
+          echo "status=scan_failed" >> $GITHUB_OUTPUT
+          echo "Secret scan failed or no secrets found"
+        fi
+    
+    - name: Generate secret scanning report
+      run: |
+        cat > secret-scanning-report.md << 'EOF'
+        # Secret Scanning Report
+        
+        **Scan Date**: $(date -u +"%Y-%m-%d %H:%M UTC")
+        **Scan Type**: Secret Detection
+        **Tool**: TruffleHog
+        
+        ## Results
+        
+        **Potential Secrets Found**: ${{ steps.secret_scan.outputs.secrets }}
+        
+        ${{ steps.secret_scan.outputs.secrets > 0 && '🔴 **WARNING**: Potential secrets detected in repository' || '✅ No secrets detected' }}
+        
+        ## Recommendations
+        
+        ${{ steps.secret_scan.outputs.secrets > 0 && '1. **Immediate Action**: Review and remove any exposed secrets' || '' }}
+        ${{ steps.secret_scan.outputs.secrets > 0 && '2. **Rotate Credentials**: Change any exposed API keys, passwords, or tokens' || '' }}
+        ${{ steps.secret_scan.outputs.secrets > 0 && '3. **Git History**: Consider using git-filter-branch or BFG Repo-Cleaner for sensitive data removal' || '' }}
+        ${{ steps.secret_scan.outputs.secrets == 0 && '✅ Good security hygiene - no secrets exposed' || '' }}
+        
+        EOF
+
+  # Job 4: Configuration Security Analysis
+  config-security:
+    name: Configuration Security Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      config_issues: ${{ steps.config_scan.outputs.issues }}
+      recommendations: ${{ steps.config_scan.outputs.recommendations }}
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Analyze configuration security
+      id: config_scan
+      run: |
+        echo "Analyzing configuration security..."
+        
+        CONFIG_ISSUES=0
+        RECOMMENDATIONS=()
+        
+        # Check GitHub Actions workflows
+        for workflow in .github/workflows/*.yml .github/workflows/*.yaml; do
+          if [ -f "$workflow" ]; then
+            echo "Analyzing $workflow..."
+            
+            # Check for potential security issues
+            if grep -q "token.*secrets\." "$workflow"; then
+              echo "::info::Found token usage in $workflow"
+            fi
+            
+            if grep -q "pull_request_target" "$workflow"; then
+              echo "::warning::$workflow uses pull_request_target - review for security implications"
+              RECOMMENDATIONS+=("Review $workflow for pull_request_target security")
+              CONFIG_ISSUES=$((CONFIG_ISSUES + 1))
+            fi
+            
+            if ! grep -q "timeout-minutes" "$workflow"; then
+              echo "::warning::$workflow lacks timeout configuration"
+              RECOMMENDATIONS+=("Add timeout-minutes to $workflow")
+              CONFIG_ISSUES=$((CONFIG_ISSUES + 1))
+            fi
+          fi
+        done
+        
+        # Check for sensitive files
+        SENSITIVE_FILES=(".env" "config.json" "secrets.json" "*.pem" "*.key")
+        for pattern in "${SENSITIVE_FILES[@]}"; do
+          for file in $(find . -name "$pattern" -not -path "./node_modules/*" 2>/dev/null); do
+            if [ -f "$file" ]; then
+              echo "::warning::Found potentially sensitive file: $file"
+              RECOMMENDATIONS+=("Review $file for sensitive data")
+              CONFIG_ISSUES=$((CONFIG_ISSUES + 1))
+            fi
+          done
+        done
+        
+        # Check .gitignore
+        if [ -f .gitignore ]; then
+          if ! grep -q "\.env" .gitignore; then
+            echo "::warning::.gitignore should include .env files"
+            RECOMMENDATIONS+=("Add .env to .gitignore")
+            CONFIG_ISSUES=$((CONFIG_ISSUES + 1))
+          fi
+        else
+          echo "::warning::No .gitignore file found"
+          RECOMMENDATIONS+=("Create .gitignore file")
+          CONFIG_ISSUES=$((CONFIG_ISSUES + 1))
+        fi
+        
+        echo "issues=$CONFIG_ISSUES" >> $GITHUB_OUTPUT
+        
+        RECOMMENDATIONS_JSON=$(printf '%s\n' "${RECOMMENDATIONS[@]}" | jq -R -s -c 'split("\n")[:-1]')
+        echo "recommendations=$RECOMMENDATIONS_JSON" >> $GITHUB_OUTPUT
+        
+        echo "Configuration Issues Found: $CONFIG_ISSUES"
+
+  # Job 5: Security Summary and Notification
+  security-summary:
+    name: Security Summary
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [dependency-security, code-security, secret-scanning, config-security]
+    if: always()
+    
+    steps:
+    - name: Generate security summary
+      run: |
+        echo "## Security Scan Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Scan Date**: $(date -u +"%Y-%m-%d %H:%M UTC")" >> $GITHUB_STEP_SUMMARY
+        echo "**Scan Type**: Comprehensive Security Analysis" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Security Area | Status | Issues |" >> $GITHUB_STEP_SUMMARY
+        echo "|----------------|--------|--------|" >> $GITHUB_STEP_SUMMARY
+        echo "| Dependencies | ${{ needs.dependency-security.outputs.vulnerabilities_found > 0 && '❌ Vulnerabilities Found' || '✅ Secure' }} | ${{ needs.dependency-security.outputs.vulnerabilities_found }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Code Security | ${{ needs.code-security.outputs.issues_found > 0 && '❌ Issues Found' || '✅ Secure' }} | ${{ needs.code-security.outputs.issues_found }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Secret Scanning | ${{ needs.secret-scanning.outputs.secrets_found > 0 && '❌ Secrets Found' || '✅ Clean' }} | ${{ needs.secret-scanning.outputs.secrets_found }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Configuration | ${{ needs.config-security.outputs.config_issues > 0 && '⚠️ Issues Found' || '✅ Secure' }} | ${{ needs.config-security.outputs.config_issues }} |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Critical issues summary
+        CRITICAL_TOTAL=$(( ${{ needs.dependency-security.outputs.critical_count }} + ${{ needs.code-security.outputs.critical }} ))
+        
+        if [ "$CRITICAL_TOTAL" -gt 0 ]; then
+          echo "🔴 **CRITICAL SECURITY ISSUES FOUND**: $CRITICAL_TOTAL" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Immediate Action Required**:" >> $GITHUB_STEP_SUMMARY
+          echo "- Review critical vulnerabilities in dependencies" >> $GITHUB_STEP_SUMMARY
+          echo "- Address critical code security issues" >> $GITHUB_STEP_SUMMARY
+          echo "- Remove any exposed secrets" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "✅ **No critical security issues found**" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+        echo "- Review detailed security reports" >> $GITHUB_STEP_SUMMARY
+        echo "- Address identified vulnerabilities" >> $GITHUB_STEP_SUMMARY
+        echo "- Set up continuous security monitoring" >> $GITHUB_STEP_SUMMARY
+    
+    - name: Create security badge
+      run: |
+        # Calculate overall security score
+        DEP_ISSUES="${{ needs.dependency-security.outputs.vulnerabilities_found }}"
+        CODE_ISSUES="${{ needs.code-security.outputs.issues_found }}"
+        SECRET_ISSUES="${{ needs.secret-scanning.outputs.secrets_found }}"
+        CONFIG_ISSUES="${{ needs.config-security.outputs.config_issues }}"
+        
+        TOTAL_ISSUES=$((DEP_ISSUES + CODE_ISSUES + SECRET_ISSUES + CONFIG_ISSUES))
+        
+        if [ "$TOTAL_ISSUES" -eq 0 ]; then
+          SECURITY_STATUS="Secure"
+          BADGE_COLOR="brightgreen"
+        elif [ "$TOTAL_ISSUES" -le 5 ]; then
+          SECURITY_STATUS="Minor Issues"
+          BADGE_COLOR="green"
+        elif [ "$TOTAL_ISSUES" -le 15 ]; then
+          SECURITY_STATUS="Moderate Issues"
+          BADGE_COLOR="yellow"
+        else
+          SECURITY_STATUS="Major Issues"
+          BADGE_COLOR="red"
+        fi
+        
+        echo "Security Status: $SECURITY_STATUS"
+        echo "Total Issues: $TOTAL_ISSUES"
+        echo "Badge Color: $BADGE_COLOR"
+    
+    - name: Upload security reports
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: security-reports
+        path: |
+          dependency-security-report.md
+          code-security-report.md
+          secret-scanning-report.md
+          npm-audit-report.html
+          eslint-security-report.json
+          semgrep-report.json
+          secrets-report.json
+        retention-days: 30

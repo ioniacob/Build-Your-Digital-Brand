@@ -353,6 +353,7 @@
         .footer-link {
             position: absolute;
             bottom: 1.5rem;
+            width: 320px;
             left: 50%;
             transform: translateX(-50%);
             z-index: 50;
@@ -386,6 +387,38 @@
 
         .footer-link:hover svg {
             transform: translateX(2px);
+        }
+
+        /* Design origin disclaimer link */
+        .design-origin-link {
+            position: fixed;
+            bottom: 5px;
+            left: 24px;
+            z-index: 100;
+            color: #808080;
+            font-size: 0.75rem;
+            text-decoration: none;
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(8px);
+            padding: 0.3rem 0.5rem;
+            border-radius: 6px;
+            border: 1px solid rgba(128, 128, 128, 0.2);
+            transition: all 0.2s ease;
+        }
+
+        .design-origin-link:hover {
+            color: #a0a0a0;
+            background: rgba(0, 0, 0, 0.4);
+            border-color: rgba(128, 128, 128, 0.4);
+        }
+
+        @media (max-width: 640px) {
+            .design-origin-link {
+                bottom: 5px; /* Move above control panel and footer */
+                left: 16px;
+                font-size: 0.7rem;
+                padding: 0.4rem 0.6rem;
+            }
         }
     </style>
 </head>
@@ -447,6 +480,11 @@
                 <button class="tabs-trigger" data-mode="transfer">Transfer</button>
             </div>
         </div>
+
+        <!-- Design Origin Disclaimer -->
+        <a href="https://v0.app/templates/scroll-motion-landing-page-mgyurrbLm2P" target="_blank" rel="noopener noreferrer" class="design-origin-link">
+            Design origin and disclaimer
+        </a>
 
         <a href="https://bigbangsocial.com/" target="_blank" rel="noopener noreferrer" class="footer-link">
             <span>Let's add this to your brand: Contact us</span>

@@ -1,0 +1,49 @@
+name: Update Navigation Manifest
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - '**.html'
+  workflow_dispatch:
+
+jobs:
+  update-manifest:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Update files manifest
+      run: |
+        # Find all HTML files excluding index.html
+        HTML_FILES=$(find . -name "*.html" -not -name "index.html" -not -path "./.*" | sed 's|^./||' | sort -u | jq -R -s -c 'split("\n")[:-1]')
+        
+        # Create updated manifest
+        cat > files-manifest.json << EOF
+        {
+          "files": $HTML_FILES,
+          "lastUpdated": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+          "description": "Manifest of HTML files for dynamic navigation discovery",
+          "version": "1.0.0"
+        }
+        EOF
+        
+        echo "Updated manifest with files:"
+        echo "$HTML_FILES" | jq -r '.[]'
+    
+    - name: Commit and push changes
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        
+        if git diff --quiet files-manifest.json; then
+          echo "No changes to manifest"
+        else
+          git add files-manifest.json
+          git commit -m "Auto-update navigation manifest [skip ci]"
+          git push
+        fi

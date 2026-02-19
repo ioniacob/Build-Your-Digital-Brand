@@ -1,0 +1,472 @@
+# 🧪 EXPERIMENTAL WORKFLOW - FOR TESTING PURPOSES
+# Custom performance monitoring implementation
+# For production use, consider these proven alternatives:
+# - GoogleChrome/lighthouse-ci (Google's official performance testing)
+# - actions/pagespeed-insights (automated performance monitoring)
+# - calibreapp/github-actions (comprehensive performance tracking)
+
+name: Performance Monitoring & Optimization
+
+on:
+  push:
+    branches: [ main, master, develop ]
+    paths:
+      - '**.html'
+      - '**.css'
+      - '**.js'
+      - 'assets/**'
+  pull_request:
+    branches: [ main, master ]
+  schedule:
+    # Run daily performance checks
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+    inputs:
+      detailed_analysis:
+        description: 'Run detailed performance analysis'
+        required: false
+        default: false
+        type: boolean
+      lighthouse_audit:
+        description: 'Run Lighthouse performance audit'
+        required: false
+        default: true
+        type: boolean
+
+env:
+  PERFORMANCE_BUDGET: |
+    {
+      "html": { "maxSize": "50kb" },
+      "css": { "maxSize": "100kb" },
+      "js": { "maxSize": "200kb" },
+      "images": { "maxSize": "500kb" },
+      "total": { "maxSize": "2mb" }
+    }
+
+jobs:
+  # Job 1: File Size Analysis
+  file-size-analysis:
+    name: File Size Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      oversized_files: ${{ steps.size_check.outputs.oversized }}
+      total_size: ${{ steps.size_check.outputs.total }}
+      performance_score: ${{ steps.size_check.outputs.score }}
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Analyze file sizes
+      id: size_check
+      run: |
+        echo "Analyzing file sizes against performance budget..."
+        
+        # Parse performance budget
+        HTML_MAX=$(echo '${{ env.PERFORMANCE_BUDGET }}' | jq -r '.html.maxSize' | sed 's/kb/*1024/' | bc)
+        CSS_MAX=$(echo '${{ env.PERFORMANCE_BUDGET }}' | jq -r '.css.maxSize' | sed 's/kb/*1024/' | bc)
+        JS_MAX=$(echo '${{ env.PERFORMANCE_BUDGET }}' | jq -r '.js.maxSize' | sed 's/kb/*1024/' | bc)
+        IMAGES_MAX=$(echo '${{ env.PERFORMANCE_BUDGET }}' | jq -r '.images.maxSize' | sed 's/kb/*1024/' | bc)
+        TOTAL_MAX=$(echo '${{ env.PERFORMANCE_BUDGET }}' | jq -r '.total.maxSize' | sed 's/kb/*1024/' | bc)
+        
+        OVERSIZED_FILES=()
+        TOTAL_SIZE=0
+        PERFORMANCE_SCORE=100
+        
+        # Check HTML files
+        for file in $(find . -name "*.html" -not -path "./node_modules/*"); do
+          if [ -f "$file" ]; then
+            SIZE=$(stat -c%s "$file")
+            TOTAL_SIZE=$((TOTAL_SIZE + SIZE))
+            
+            if [ "$SIZE" -gt "$HTML_MAX" ]; then
+              echo "::warning::Oversized HTML file: $file ($(($SIZE / 1024))KB > $(($HTML_MAX / 1024))KB)"
+              OVERSIZED_FILES+=("$file ($(($SIZE / 1024))KB)")
+              PERFORMANCE_SCORE=$((PERFORMANCE_SCORE - 10))
+            fi
+          fi
+        done
+        
+        # Check CSS files
+        for file in $(find . -name "*.css" -not -path "./node_modules/*"); do
+          if [ -f "$file" ]; then
+            SIZE=$(stat -c%s "$file")
+            TOTAL_SIZE=$((TOTAL_SIZE + SIZE))
+            
+            if [ "$SIZE" -gt "$CSS_MAX" ]; then
+              echo "::warning::Oversized CSS file: $file ($(($SIZE / 1024))KB > $(($CSS_MAX / 1024))KB)"
+              OVERSIZED_FILES+=("$file ($(($SIZE / 1024))KB)")
+              PERFORMANCE_SCORE=$((PERFORMANCE_SCORE - 5))
+            fi
+          fi
+        done
+        
+        # Check JavaScript files
+        for file in $(find . -name "*.js" -not -path "./node_modules/*"); do
+          if [ -f "$file" ]; then
+            SIZE=$(stat -c%s "$file")
+            TOTAL_SIZE=$((TOTAL_SIZE + SIZE))
+            
+            if [ "$SIZE" -gt "$JS_MAX" ]; then
+              echo "::warning::Oversized JS file: $file ($(($SIZE / 1024))KB > $(($JS_MAX / 1024))KB)"
+              OVERSIZED_FILES+=("$file ($(($SIZE / 1024))KB)")
+              PERFORMANCE_SCORE=$((PERFORMANCE_SCORE - 10))
+            fi
+          fi
+        done
+        
+        # Check images
+        for file in $(find . -name "*.jpg" -o -name "*.png" -o -name "*.gif" -o -name "*.svg" -o -name "*.webp" -not -path "./node_modules/*"); do
+          if [ -f "$file" ]; then
+            SIZE=$(stat -c%s "$file")
+            TOTAL_SIZE=$((TOTAL_SIZE + SIZE))
+            
+            if [ "$SIZE" -gt "$IMAGES_MAX" ]; then
+              echo "::warning::Oversized image: $file ($(($SIZE / 1024))KB > $(($IMAGES_MAX / 1024))KB)"
+              OVERSIZED_FILES+=("$file ($(($SIZE / 1024))KB)")
+              PERFORMANCE_SCORE=$((PERFORMANCE_SCORE - 15))
+            fi
+          fi
+        done
+        
+        # Check total size
+        if [ "$TOTAL_SIZE" -gt "$TOTAL_MAX" ]; then
+          echo "::warning::Total project size exceeds budget: $(($TOTAL_SIZE / 1024))KB > $(($TOTAL_MAX / 1024))KB"
+          PERFORMANCE_SCORE=$((PERFORMANCE_SCORE - 20))
+        fi
+        
+        # Output results
+        echo "oversized=$(printf '%s\n' "${OVERSIZED_FILES[@]}" | jq -R -s -c 'split("\n")[:-1]')" >> $GITHUB_OUTPUT
+        echo "total=$TOTAL_SIZE" >> $GITHUB_OUTPUT
+        echo "score=$PERFORMANCE_SCORE" >> $GITHUB_OUTPUT
+        
+        echo "Performance Score: $PERFORMANCE_SCORE/100"
+        echo "Total Project Size: $(($TOTAL_SIZE / 1024))KB"
+        echo "Oversized Files: ${#OVERSIZED_FILES[@]}"
+    
+    - name: Generate size report
+      run: |
+        cat > performance-report.md << 'EOF'
+        # Performance Analysis Report
+        
+        **Analysis Date**: $(date -u +"%Y-%m-%d %H:%M UTC")
+        **Performance Score**: ${{ steps.size_check.outputs.score }}/100
+        **Total Project Size**: $((${{ steps.size_check.outputs.total }} / 1024))KB
+        
+        ## Budget Compliance
+        
+        | File Type | Budget | Status |
+        |-----------|--------|--------|
+        | HTML Files | 50KB | ${{ steps.size_check.outputs.score >= 90 && '✅' || '❌' }} |
+        | CSS Files | 100KB | ${{ steps.size_check.outputs.score >= 90 && '✅' || '❌' }} |
+        | JavaScript Files | 200KB | ${{ steps.size_check.outputs.score >= 90 && '✅' || '❌' }} |
+        | Images | 500KB | ${{ steps.size_check.outputs.score >= 90 && '✅' || '❌' }} |
+        | Total Project | 2MB | ${{ steps.size_check.outputs.score >= 80 && '✅' || '❌' }} |
+        
+        ## Recommendations
+        
+        ${{ steps.size_check.outputs.score < 90 && '⚠️ Consider optimizing file sizes for better performance' || '✅ Performance budget compliance achieved' }}
+        
+        EOF
+
+  # Job 2: HTML Validation and Optimization
+  html-optimization:
+    name: HTML Optimization
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: file-size-analysis
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+    
+    - name: Install HTML validation tools
+      run: |
+        npm install -g html-validate html-minifier-terser
+    
+    - name: Validate HTML files
+      id: html_validation
+      run: |
+        echo "Validating HTML files..."
+        
+        VALIDATION_ERRORS=0
+        VALIDATION_WARNINGS=0
+        
+        for file in $(find . -name "*.html" -not -path "./node_modules/*"); do
+          if [ -f "$file" ]; then
+            echo "Validating $file..."
+            
+            # Basic HTML validation
+            if html-validate "$file" 2>&1 | tee validation-output.txt; then
+              echo "✅ $file passed validation"
+            else
+              echo "❌ $file failed validation"
+              VALIDATION_ERRORS=$((VALIDATION_ERRORS + 1))
+            fi
+            
+            # Count warnings
+            WARNINGS=$(grep -c "warning" validation-output.txt 2>/dev/null || echo "0")
+            VALIDATION_WARNINGS=$((VALIDATION_WARNINGS + WARNINGS))
+          fi
+        done
+        
+        echo "errors=$VALIDATION_ERRORS" >> $GITHUB_OUTPUT
+        echo "warnings=$VALIDATION_WARNINGS" >> $GITHUB_OUTPUT
+        
+        echo "HTML Validation: $VALIDATION_ERRORS errors, $VALIDATION_WARNINGS warnings"
+    
+    - name: Analyze HTML optimization opportunities
+      run: |
+        echo "Analyzing HTML optimization opportunities..."
+        
+        for file in $(find . -name "*.html" -not -path "./node_modules/*"); do
+          if [ -f "$file" ]; then
+            echo "Analyzing $file..."
+            
+            # Check for optimization opportunities
+            if grep -q "  " "$file"; then
+              echo "::warning::$file has excess whitespace (minification opportunity)"
+            fi
+            
+            if grep -q "<!--.*-->" "$file"; then
+              echo "::info::$file has HTML comments (consider removing for production)"
+            fi
+            
+            # Check for unoptimized images
+            if grep -q "<img" "$file"; then
+              echo "::info::$file contains images (ensure they're optimized)"
+            fi
+          fi
+        done
+
+  # Job 3: Lighthouse Performance Audit
+  lighthouse-audit:
+    name: Lighthouse Performance Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: file-size-analysis
+    if: github.event.inputs.lighthouse_audit != 'false'
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+    
+    - name: Install Lighthouse
+      run: |
+        npm install -g lighthouse
+    
+    - name: Start local server
+      run: |
+        # Start a simple HTTP server
+        python3 -m http.server 8080 &
+        SERVER_PID=$!
+        echo "SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
+        sleep 5
+    
+    - name: Run Lighthouse audit
+      id: lighthouse_audit
+      run: |
+        echo "Running Lighthouse performance audit..."
+        
+        # Run Lighthouse on index.html
+        lighthouse http://localhost:8080/index.html \
+          --output=json \
+          --output-path=lighthouse-report.json \
+          --chrome-flags="--headless --no-sandbox --disable-dev-shm-usage" \
+          --only-categories=performance,accessibility,best-practices,seo || true
+        
+        if [ -f lighthouse-report.json ]; then
+          # Extract scores
+          PERF_SCORE=$(jq -r '.categories.performance.score * 100' lighthouse-report.json 2>/dev/null || echo "0")
+          A11Y_SCORE=$(jq -r '.categories.accessibility.score * 100' lighthouse-report.json 2>/dev/null || echo "0")
+          BP_SCORE=$(jq -r '.categories["best-practices"].score * 100' lighthouse-report.json 2>/dev/null || echo "0")
+          SEO_SCORE=$(jq -r '.categories.seo.score * 100' lighthouse-report.json 2>/dev/null || echo "0")
+          
+          echo "performance_score=$PERF_SCORE" >> $GITHUB_OUTPUT
+          echo "accessibility_score=$A11Y_SCORE" >> $GITHUB_OUTPUT
+          echo "best_practices_score=$BP_SCORE" >> $GITHUB_OUTPUT
+          echo "seo_score=$SEO_SCORE" >> $GITHUB_OUTPUT
+          
+          echo "Lighthouse Scores:"
+          echo "Performance: $PERF_SCORE/100"
+          echo "Accessibility: $A11Y_SCORE/100"
+          echo "Best Practices: $BP_SCORE/100"
+          echo "SEO: $SEO_SCORE/100"
+        else
+          echo "Lighthouse report not generated"
+        fi
+    
+    - name: Stop local server
+      if: always()
+      run: |
+        if [ -n "$SERVER_PID" ]; then
+          kill $SERVER_PID || true
+        fi
+    
+    - name: Generate Lighthouse report
+      if: always()
+      run: |
+        if [ -f lighthouse-report.json ]; then
+          cat > lighthouse-summary.md << 'EOF'
+          # Lighthouse Performance Report
+          
+          **Audit Date**: $(date -u +"%Y-%m-%d %H:%M UTC")
+          
+          | Category | Score | Status |
+          |----------|-------|--------|
+          | Performance | ${{ steps.lighthouse_audit.outputs.performance_score }}/100 | ${{ steps.lighthouse_audit.outputs.performance_score >= 90 && '✅ Good' || steps.lighthouse_audit.outputs.performance_score >= 50 && '⚠️ Needs Improvement' || '❌ Poor' }} |
+          | Accessibility | ${{ steps.lighthouse_audit.outputs.accessibility_score }}/100 | ${{ steps.lighthouse_audit.outputs.accessibility_score >= 90 && '✅ Good' || steps.lighthouse_audit.outputs.accessibility_score >= 50 && '⚠️ Needs Improvement' || '❌ Poor' }} |
+          | Best Practices | ${{ steps.lighthouse_audit.outputs.best_practices_score }}/100 | ${{ steps.lighthouse_audit.outputs.best_practices_score >= 90 && '✅ Good' || steps.lighthouse_audit.outputs.best_practices_score >= 50 && '⚠️ Needs Improvement' || '❌ Poor' }} |
+          | SEO | ${{ steps.lighthouse_audit.outputs.seo_score }}/100 | ${{ steps.lighthouse_audit.outputs.seo_score >= 90 && '✅ Good' || steps.lighthouse_audit.outputs.seo_score >= 50 && '⚠️ Needs Improvement' || '❌ Poor' }} |
+          
+          EOF
+        fi
+
+  # Job 4: Performance Optimization Suggestions
+  optimization-suggestions:
+    name: Optimization Suggestions
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [file-size-analysis, html-optimization, lighthouse-audit]
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Generate optimization suggestions
+      run: |
+        cat > optimization-suggestions.md << 'EOF'
+        # Performance Optimization Suggestions
+        
+        **Generated**: $(date -u +"%Y-%m-%d %H:%M UTC")
+        
+        ## Current Performance Status
+        
+        - **File Size Score**: ${{ needs.file-size-analysis.outputs.performance_score }}/100
+        - **HTML Validation**: ${{ needs.html-optimization.outputs.errors }} errors, ${{ needs.html-optimization.outputs.warnings }} warnings
+        - **Lighthouse Performance**: ${{ needs.lighthouse-audit.outputs.performance_score }}/100
+        
+        ## Optimization Recommendations
+        
+        ${{ needs.file-size-analysis.outputs.performance_score < 90 && '### File Size Optimization' || '' }}
+        ${{ needs.file-size-analysis.outputs.performance_score < 90 && '- Consider minifying HTML, CSS, and JavaScript files' || '' }}
+        ${{ needs.file-size-analysis.outputs.performance_score < 90 && '- Optimize images using modern formats (WebP, AVIF)' || '' }}
+        ${{ needs.file-size-analysis.outputs.performance_score < 90 && '- Remove unused CSS and JavaScript code' || '' }}
+        
+        ${{ needs.html-optimization.outputs.errors > 0 && '### HTML Validation' || '' }}
+        ${{ needs.html-optimization.outputs.errors > 0 && '- Fix HTML validation errors for better browser compatibility' || '' }}
+        ${{ needs.html-optimization.outputs.warnings > 0 && '- Address HTML validation warnings' || '' }}
+        
+        ${{ needs.lighthouse-audit.outputs.performance_score < 90 && '### Lighthouse Performance' || '' }}
+        ${{ needs.lighthouse-audit.outputs.performance_score < 90 && '- Implement lazy loading for images' || '' }}
+        ${{ needs.lighthouse-audit.outputs.performance_score < 90 && '- Enable text compression (gzip/brotli)' || '' }}
+        ${{ needs.lighthouse-audit.outputs.performance_score < 90 && '- Optimize critical rendering path' || '' }}
+        
+        ## Implementation Priority
+        
+        1. **High Priority**: Security vulnerabilities and critical performance issues
+        2. **Medium Priority**: File size optimization and accessibility improvements  
+        3. **Low Priority**: Minor validation warnings and best practice suggestions
+        
+        EOF
+
+  # Job 5: Performance Monitoring Setup
+  setup-monitoring:
+    name: Setup Performance Monitoring
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [file-size-analysis, optimization-suggestions]
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Create performance monitoring configuration
+      run: |
+        cat > .github/performance-config.json << 'EOF'
+        {
+          "budgets": ${{ env.PERFORMANCE_BUDGET }},
+          "thresholds": {
+            "performance_score": 80,
+            "accessibility_score": 90,
+            "best_practices_score": 90,
+            "file_size_score": 85
+          },
+          "monitoring": {
+            "enabled": true,
+            "schedule": "daily",
+            "notifications": {
+              "budget_violations": true,
+              "score_regressions": true,
+              "critical_issues": true
+            }
+          }
+        }
+        EOF
+        
+        echo "Performance monitoring configuration created"
+    
+    - name: Create performance badge
+      run: |
+        PERFORMANCE_SCORE="${{ needs.file-size-analysis.outputs.performance_score }}"
+        
+        # Create badge based on performance score
+        if [ "$PERFORMANCE_SCORE" -ge 90 ]; then
+          BADGE_COLOR="brightgreen"
+          BADGE_STATUS="Excellent"
+        elif [ "$PERFORMANCE_SCORE" -ge 80 ]; then
+          BADGE_COLOR="green"
+          BADGE_STATUS="Good"
+        elif [ "$PERFORMANCE_SCORE" -ge 70 ]; then
+          BADGE_COLOR="yellow"
+          BADGE_STATUS="Fair"
+        elif [ "$PERFORMANCE_SCORE" -ge 60 ]; then
+          BADGE_COLOR="orange"
+          BADGE_STATUS="Needs Improvement"
+        else
+          BADGE_COLOR="red"
+          BADGE_STATUS="Poor"
+        fi
+        
+        echo "Performance Badge: $PERFORMANCE_SCORE/100 ($BADGE_STATUS)"
+        echo "Badge Color: $BADGE_COLOR"
+
+  # Job 6: Summary and Notification
+  summary:
+    name: Performance Summary
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [file-size-analysis, html-optimization, lighthouse-audit, optimization-suggestions]
+    if: always()
+    
+    steps:
+    - name: Generate performance summary
+      run: |
+        echo "## Performance Analysis Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Analysis Date**: $(date -u +"%Y-%m-%d %H:%M UTC")" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Metric | Score | Status |" >> $GITHUB_STEP_SUMMARY
+        echo "|--------|-------|--------|" >> $GITHUB_STEP_SUMMARY
+        echo "| File Size Score | ${{ needs.file-size-analysis.outputs.performance_score }}/100 | ${{ needs.file-size-analysis.outputs.performance_score >= 90 && '✅' || '⚠️' }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| HTML Validation | ${{ needs.html-optimization.outputs.errors }} errors, ${{ needs.html-optimization.outputs.warnings }} warnings | ${{ needs.html-optimization.outputs.errors == 0 && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Lighthouse Performance | ${{ needs.lighthouse-audit.outputs.performance_score }}/100 | ${{ needs.lighthouse-audit.outputs.performance_score >= 90 && '✅' || needs.lighthouse-audit.outputs.performance_score >= 50 && '⚠️' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Lighthouse Accessibility | ${{ needs.lighthouse-audit.outputs.accessibility_score }}/100 | ${{ needs.lighthouse-audit.outputs.accessibility_score >= 90 && '✅' || '⚠️' }} |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [ "${{ needs.file-size-analysis.outputs.performance_score }}" -lt 90 ]; then
+          echo "⚠️ Performance optimizations recommended. See detailed reports for specific suggestions." >> $GITHUB_STEP_SUMMARY
+        else
+          echo "✅ Performance meets acceptable standards." >> $GITHUB_STEP_SUMMARY
+        fi
