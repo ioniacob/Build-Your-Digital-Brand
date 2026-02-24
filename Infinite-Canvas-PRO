@@ -1,0 +1,1060 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Infinite Canvas - PRO Implementation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* Canvas Container */
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            position: relative;
+            cursor: grab;
+        }
+
+        #canvas-container:active {
+            cursor: grabbing;
+        }
+
+        #canvas-content {
+            position: absolute;
+            top: 0;
+            left: 0;
+            transform-origin: 0 0;
+            will-change: transform;
+        }
+
+        /* Grid Pattern */
+        .grid-pattern {
+            position: absolute;
+            top: -50000px;
+            left: -50000px;
+            width: 100000px;
+            height: 100000px;
+            background-image: 
+                linear-gradient(var(--bg-tertiary) 1px, transparent 1px),
+                linear-gradient(90deg, var(--bg-tertiary) 1px, transparent 1px);
+            background-size: 50px 50px;
+            background-position: 50000px 50000px;
+            opacity: 0.3;
+            pointer-events: none;
+        }
+
+        /* Canvas Items */
+        .canvas-item {
+            position: absolute;
+            background: var(--bg-secondary);
+            border: 2px solid var(--accent);
+            border-radius: 8px;
+            padding: 16px;
+            min-width: 150px;
+            max-width: 300px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+            transform: translate(-50%, -50%);
+            transition: box-shadow 0.2s, border-color 0.2s;
+        }
+
+        .canvas-item:hover {
+            box-shadow: 0 8px 12px -2px rgba(59, 130, 246, 0.4);
+            border-color: var(--accent-hover);
+        }
+
+        .canvas-item.selected {
+            border-color: var(--success);
+            box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.3);
+        }
+
+        .canvas-item .item-title {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+        }
+
+        .canvas-item .item-content {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .canvas-item .item-coords {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid var(--bg-tertiary);
+        }
+
+        /* UI Overlay */
+        .ui-overlay {
+            position: fixed;
+            z-index: 100;
+            background: var(--bg-secondary);
+            border: 1px solid var(--bg-tertiary);
+            border-radius: 8px;
+            padding: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+        }
+
+        .toolbar {
+            top: 16px;
+            left: 16px;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            max-width: 400px;
+        }
+
+        .stats-panel {
+            top: 16px;
+            right: 16px;
+            min-width: 200px;
+        }
+
+        .zoom-controls {
+            bottom: 80px;
+            right: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .help-panel {
+            bottom: 80px;
+            left: 16px;
+            max-width: 300px;
+        }
+
+        /* Buttons */
+        .btn {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        .btn:hover {
+            background: var(--accent);
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .btn-primary {
+            background: var(--accent);
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-hover);
+        }
+
+        .btn-success {
+            background: var(--success);
+        }
+
+        .btn-danger {
+            background: var(--danger);
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        /* Stats */
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            font-size: 13px;
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+        }
+
+        .stat-value {
+            font-weight: 600;
+            color: var(--accent);
+        }
+
+        /* List View */
+        .list-view {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 350px;
+            height: 100vh;
+            background: var(--bg-secondary);
+            border-left: 1px solid var(--bg-tertiary);
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+            z-index: 200;
+            overflow-y: auto;
+        }
+
+        .list-view.open {
+            transform: translateX(0);
+        }
+
+        .list-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--bg-tertiary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .list-item {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--bg-tertiary);
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .list-item:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .list-item.selected {
+            background: rgba(59, 130, 246, 0.2);
+            border-left: 3px solid var(--accent);
+        }
+
+        .list-item-title {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .list-item-coords {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        /* Keyboard Focus Indicator */
+        .keyboard-focus {
+            outline: 2px solid var(--warning);
+            outline-offset: 2px;
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
+            to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        }
+
+        .canvas-item.new {
+            animation: fadeIn 0.3s ease;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-primary);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--accent);
+        }
+
+        /* Screen Reader Only */
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        /* ============================================
+           FOOTER - Bottom Center CTA
+           ============================================ */
+        .footer-cta {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 9999px;
+            padding: 0.5rem 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .footer-cta:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            transform: translateX(-50%) translateY(-2px);
+        }
+
+        .footer-cta-link {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+
+        .footer-cta-link:hover {
+            color: rgba(255, 255, 255, 1);
+        }
+
+        .footer-cta-arrow {
+            width: 16px;
+            height: 16px;
+            transition: transform 0.3s ease;
+        }
+
+        .footer-cta:hover .footer-cta-arrow {
+            transform: translateX(4px);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .toolbar {
+                max-width: 100%;
+                bottom: 100px;
+                top: auto;
+                left: 50%;
+                transform: translateX(-50%);
+            }
+
+            .stats-panel {
+                display: none;
+            }
+
+            .list-view {
+                width: 100%;
+            }
+
+            .help-panel {
+                display: none;
+            }
+
+            .footer-cta {
+                bottom: 16px;
+                padding: 0.4rem 0.8rem;
+                max-width: calc(100vw - 32px);
+            }
+
+            .footer-cta-link {
+                font-size: 0.75rem;
+            }
+
+            .zoom-controls {
+                bottom: 76px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Screen Reader Announcements -->
+    <div id="sr-announcements" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+
+    <!-- Canvas Container -->
+    <div id="canvas-container" role="application" aria-label="Infinite Canvas - Drag to pan, scroll to zoom">
+        <div class="grid-pattern" id="grid-pattern"></div>
+        <div id="canvas-content"></div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="ui-overlay toolbar">
+        <button class="btn btn-primary" id="btn-add-item" aria-label="Add new item to canvas">
+            ➕ Add Item
+        </button>
+        <button class="btn" id="btn-reset-view" aria-label="Reset canvas view to center">
+            🔄 Reset View
+        </button>
+        <button class="btn" id="btn-toggle-list" aria-label="Toggle items list view">
+            📋 List View
+        </button>
+        <button class="btn btn-danger" id="btn-clear-all" aria-label="Clear all items from canvas">
+            🗑️ Clear All
+        </button>
+    </div>
+
+    <!-- Stats Panel -->
+    <div class="ui-overlay stats-panel">
+        <div class="stat-row">
+            <span class="stat-label">Total Items:</span>
+            <span class="stat-value" id="stat-total">0</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">Visible Items:</span>
+            <span class="stat-value" id="stat-visible">0</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">Zoom Level:</span>
+            <span class="stat-value" id="stat-zoom">100%</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">Position:</span>
+            <span class="stat-value" id="stat-position">0, 0</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">FPS:</span>
+            <span class="stat-value" id="stat-fps">60</span>
+        </div>
+    </div>
+
+    <!-- Zoom Controls -->
+    <div class="ui-overlay zoom-controls">
+        <button class="btn btn-small" id="btn-zoom-out" aria-label="Zoom out">−</button>
+        <span id="zoom-display">100%</span>
+        <button class="btn btn-small" id="btn-zoom-in" aria-label="Zoom in">+</button>
+    </div>
+
+    <!-- Help Panel -->
+    <div class="ui-overlay help-panel">
+        <strong>⌨️ Keyboard Navigation</strong>
+        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 8px;">
+            <div>Arrow Keys: Pan canvas</div>
+            <div>+/-: Zoom in/out</div>
+            <div>0: Reset view</div>
+            <div>Tab: Navigate items</div>
+            <div>Enter: Select item</div>
+            <div>Esc: Deselect</div>
+        </div>
+    </div>
+
+    <!-- List View Sidebar -->
+    <div class="list-view" id="list-view">
+        <div class="list-header">
+            <h3>Items List</h3>
+            <button class="btn btn-small" id="btn-close-list" aria-label="Close list view">✕</button>
+        </div>
+        <div id="list-items"></div>
+    </div>
+
+    <!-- Footer CTA -->
+    <footer class="footer-cta">
+        <a 
+            href="https://bigbangsocial.com/" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            class="footer-cta-link"
+            aria-label="Contact Big Bang Social - Opens in new tab"
+        >
+            <span>Let's add this to your brand: Contact us</span>
+            <svg 
+                class="footer-cta-arrow" 
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="currentColor" 
+                stroke-width="2" 
+                stroke-linecap="round" 
+                stroke-linejoin="round"
+                aria-hidden="true"
+            >
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <polyline points="12 5 19 12 12 19"></polyline>
+            </svg>
+        </a>
+    </footer>
+
+    <script>
+        // ============================================
+        // STATE STORE (Outside React Tree)
+        // ============================================
+        const createStore = (initialState) => {
+            let state = initialState;
+            const listeners = new Set();
+
+            return {
+                getState: () => state,
+                setState: (partial) => {
+                    const newState = typeof partial === 'function' 
+                        ? partial(state) 
+                        : { ...state, ...partial };
+                    state = newState;
+                    listeners.forEach(listener => listener(state));
+                    return state;
+                },
+                subscribe: (listener) => {
+                    listeners.add(listener);
+                    return () => listeners.delete(listener);
+                }
+            };
+        };
+
+        // Canvas State Store
+        const canvasStore = createStore({
+            viewport: { x: 0, y: 0, zoom: 1 },
+            items: [],
+            selectedId: null,
+            isDragging: false,
+            lastMouse: { x: 0, y: 0 }
+        });
+
+        // ============================================
+        // VIRTUALIZATION - Only render visible items
+        // ============================================
+        const VIRTUALIZATION_MARGIN = 200;
+
+        const isVisible = (item, viewport, containerSize) => {
+            const itemLeft = item.x - 150;
+            const itemRight = item.x + 150;
+            const itemTop = item.y - 50;
+            const itemBottom = item.y + 100;
+
+            const viewLeft = -viewport.x / viewport.zoom - VIRTUALIZATION_MARGIN;
+            const viewRight = (containerSize.width - viewport.x) / viewport.zoom + VIRTUALIZATION_MARGIN;
+            const viewTop = -viewport.y / viewport.zoom - VIRTUALIZATION_MARGIN;
+            const viewBottom = (containerSize.height - viewport.y) / viewport.zoom + VIRTUALIZATION_MARGIN;
+
+            return !(itemRight < viewLeft || itemLeft > viewRight || 
+                     itemBottom < viewTop || itemTop > viewBottom);
+        };
+
+        // ============================================
+        // DOM ELEMENTS
+        // ============================================
+        const container = document.getElementById('canvas-container');
+        const content = document.getElementById('canvas-content');
+        const gridPattern = document.getElementById('grid-pattern');
+        const listView = document.getElementById('list-view');
+        const listItemsContainer = document.getElementById('list-items');
+        const srAnnouncements = document.getElementById('sr-announcements');
+
+        // Stats elements
+        const statTotal = document.getElementById('stat-total');
+        const statVisible = document.getElementById('stat-visible');
+        const statZoom = document.getElementById('stat-zoom');
+        const statPosition = document.getElementById('stat-position');
+        const statFps = document.getElementById('stat-fps');
+        const zoomDisplay = document.getElementById('zoom-display');
+
+        // ============================================
+        // RENDER FUNCTIONS
+        // ============================================
+        let itemElements = new Map();
+        let lastFrameTime = performance.now();
+        let frameCount = 0;
+        let fps = 60;
+
+        const announceToScreenReader = (message) => {
+            srAnnouncements.textContent = message;
+            setTimeout(() => { srAnnouncements.textContent = ''; }, 1000);
+        };
+
+        const updateGridPosition = () => {
+            const { x, y, zoom } = canvasStore.getState().viewport;
+            const gridSize = 50 * zoom;
+            gridPattern.style.backgroundSize = `${gridSize}px ${gridSize}px`;
+            gridPattern.style.backgroundPosition = `${50000 + x}px ${50000 + y}px`;
+        };
+
+        const updateCanvasTransform = () => {
+            const { x, y, zoom } = canvasStore.getState().viewport;
+            content.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${zoom})`;
+            updateGridPosition();
+        };
+
+        const createItemElement = (item) => {
+            const el = document.createElement('div');
+            el.className = 'canvas-item new';
+            el.setAttribute('role', 'button');
+            el.setAttribute('tabindex', '0');
+            el.setAttribute('aria-label', `Item: ${item.title} at position ${Math.round(item.x)}, ${Math.round(item.y)}`);
+            el.dataset.id = item.id;
+
+            el.innerHTML = `
+                <div class="item-title">${item.title}</div>
+                <div class="item-content">${item.content}</div>
+                <div class="item-coords">📍 ${Math.round(item.x)}, ${Math.round(item.y)}</div>
+            `;
+
+            el.addEventListener('click', (e) => {
+                e.stopPropagation();
+                selectItem(item.id);
+            });
+
+            el.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    selectItem(item.id);
+                }
+            });
+
+            return el;
+        };
+
+        const renderItems = () => {
+            const state = canvasStore.getState();
+            const { items, viewport, selectedId } = state;
+            const containerSize = { width: window.innerWidth, height: window.innerHeight };
+
+            let visibleCount = 0;
+
+            items.forEach(item => {
+                const visible = isVisible(item, viewport, containerSize);
+
+                if (visible) {
+                    visibleCount++;
+
+                    if (!itemElements.has(item.id)) {
+                        const el = createItemElement(item);
+                        content.appendChild(el);
+                        itemElements.set(item.id, el);
+                    }
+
+                    const el = itemElements.get(item.id);
+                    el.style.left = `${item.x}px`;
+                    el.style.top = `${item.y}px`;
+                    el.style.display = 'block';
+                    el.classList.toggle('selected', item.id === selectedId);
+                } else if (itemElements.has(item.id)) {
+                    const el = itemElements.get(item.id);
+                    el.style.display = 'none';
+                }
+            });
+
+            // Remove elements for deleted items
+            itemElements.forEach((el, id) => {
+                if (!items.find(i => i.id === id)) {
+                    el.remove();
+                    itemElements.delete(id);
+                }
+            });
+
+            // Update stats
+            statTotal.textContent = items.length;
+            statVisible.textContent = visibleCount;
+            statZoom.textContent = `${Math.round(viewport.zoom * 100)}%`;
+            statPosition.textContent = `${Math.round(viewport.x)}, ${Math.round(viewport.y)}`;
+            zoomDisplay.textContent = `${Math.round(viewport.zoom * 100)}%`;
+
+            // Update list view
+            renderListView();
+        };
+
+        const renderListView = () => {
+            const { items, selectedId } = canvasStore.getState();
+            
+            listItemsContainer.innerHTML = items.map(item => `
+                <div class="list-item ${item.id === selectedId ? 'selected' : ''}" 
+                     data-id="${item.id}"
+                     role="button"
+                     tabindex="0">
+                    <div class="list-item-title">${item.title}</div>
+                    <div class="list-item-coords">📍 ${Math.round(item.x)}, ${Math.round(item.y)}</div>
+                </div>
+            `).join('');
+
+            // Add click handlers to list items
+            listItemsContainer.querySelectorAll('.list-item').forEach(el => {
+                el.addEventListener('click', () => {
+                    selectItem(parseInt(el.dataset.id));
+                    centerOnItem(parseInt(el.dataset.id));
+                });
+
+                el.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        selectItem(parseInt(el.dataset.id));
+                        centerOnItem(parseInt(el.dataset.id));
+                    }
+                });
+            });
+        };
+
+        // ============================================
+        // STATE ACTIONS
+        // ============================================
+        const selectItem = (id) => {
+            canvasStore.setState({ selectedId: id });
+            const item = canvasStore.getState().items.find(i => i.id === id);
+            if (item) {
+                announceToScreenReader(`Selected: ${item.title}`);
+            }
+            renderItems();
+        };
+
+        const deselectItem = () => {
+            canvasStore.setState({ selectedId: null });
+            announceToScreenReader('Deselected');
+            renderItems();
+        };
+
+        const centerOnItem = (id) => {
+            const state = canvasStore.getState();
+            const item = state.items.find(i => i.id === id);
+            if (!item) return;
+
+            canvasStore.setState({
+                viewport: {
+                    x: window.innerWidth / 2 - item.x * state.viewport.zoom,
+                    y: window.innerHeight / 2 - item.y * state.viewport.zoom,
+                    zoom: state.viewport.zoom
+                }
+            });
+            updateCanvasTransform();
+            renderItems();
+            announceToScreenReader(`Centered on ${item.title}`);
+        };
+
+        const addItem = () => {
+            const state = canvasStore.getState();
+            const { viewport } = state;
+            
+            // Add item at center of current view (in world coordinates)
+            const worldX = (-viewport.x + window.innerWidth / 2) / viewport.zoom;
+            const worldY = (-viewport.y + window.innerHeight / 2) / viewport.zoom;
+
+            const newItem = {
+                id: Date.now(),
+                x: worldX + (Math.random() - 0.5) * 200,
+                y: worldY + (Math.random() - 0.5) * 200,
+                title: `Item ${state.items.length + 1}`,
+                content: `Created at ${new Date().toLocaleTimeString()}`
+            };
+
+            canvasStore.setState({ 
+                items: [...state.items, newItem],
+                selectedId: newItem.id
+            });
+
+            announceToScreenReader(`Added new item at position ${Math.round(newItem.x)}, ${Math.round(newItem.y)}`);
+            renderItems();
+        };
+
+        const clearAllItems = () => {
+            canvasStore.setState({ items: [], selectedId: null });
+            itemElements.forEach(el => el.remove());
+            itemElements.clear();
+            announceToScreenReader('All items cleared');
+            renderItems();
+        };
+
+        const resetView = () => {
+            canvasStore.setState({ 
+                viewport: { x: 0, y: 0, zoom: 1 },
+                selectedId: null
+            });
+            updateCanvasTransform();
+            renderItems();
+            announceToScreenReader('View reset to center');
+        };
+
+        const zoomIn = () => {
+            const state = canvasStore.getState();
+            const newZoom = Math.min(5, state.viewport.zoom * 1.2);
+            canvasStore.setState({
+                viewport: { ...state.viewport, zoom: newZoom }
+            });
+            updateCanvasTransform();
+            renderItems();
+        };
+
+        const zoomOut = () => {
+            const state = canvasStore.getState();
+            const newZoom = Math.max(0.1, state.viewport.zoom / 1.2);
+            canvasStore.setState({
+                viewport: { ...state.viewport, zoom: newZoom }
+            });
+            updateCanvasTransform();
+            renderItems();
+        };
+
+        // ============================================
+        // EVENT HANDLERS (with passive: false)
+        // ============================================
+        let rafId = null;
+
+        const handleWheel = (e) => {
+            e.preventDefault(); // Prevent native scroll
+
+            const state = canvasStore.getState();
+            const { viewport } = state;
+
+            // Zoom on wheel, pan on shift+wheel
+            if (e.shiftKey) {
+                canvasStore.setState({
+                    viewport: {
+                        ...viewport,
+                        x: viewport.x - e.deltaX,
+                        y: viewport.y - e.deltaY
+                    }
+                });
+            } else {
+                const zoomSensitivity = 0.001;
+                const newZoom = Math.min(
+                    Math.max(0.1, viewport.zoom - e.deltaY * zoomSensitivity),
+                    5
+                );
+
+                // Zoom towards mouse position
+                const rect = container.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+
+                const worldX = (mouseX - viewport.x) / viewport.zoom;
+                const worldY = (mouseY - viewport.y) / viewport.zoom;
+
+                const newX = mouseX - worldX * newZoom;
+                const newY = mouseY - worldY * newZoom;
+
+                canvasStore.setState({
+                    viewport: { x: newX, y: newY, zoom: newZoom }
+                });
+            }
+
+            updateCanvasTransform();
+            
+            if (rafId) cancelAnimationFrame(rafId);
+            rafId = requestAnimationFrame(() => renderItems());
+        };
+
+        const handleMouseDown = (e) => {
+            if (e.button !== 0) return; // Only left click
+            canvasStore.setState({ 
+                isDragging: true,
+                lastMouse: { x: e.clientX, y: e.clientY }
+            });
+            container.style.cursor = 'grabbing';
+        };
+
+        const handleMouseMove = (e) => {
+            const state = canvasStore.getState();
+            if (!state.isDragging) return;
+
+            const dx = e.clientX - state.lastMouse.x;
+            const dy = e.clientY - state.lastMouse.y;
+
+            canvasStore.setState({
+                viewport: {
+                    ...state.viewport,
+                    x: state.viewport.x + dx,
+                    y: state.viewport.y + dy
+                },
+                lastMouse: { x: e.clientX, y: e.clientY }
+            });
+
+            updateCanvasTransform();
+
+            if (rafId) cancelAnimationFrame(rafId);
+            rafId = requestAnimationFrame(() => renderItems());
+        };
+
+        const handleMouseUp = () => {
+            canvasStore.setState({ isDragging: false });
+            container.style.cursor = 'grab';
+        };
+
+        // Keyboard Navigation (Accessibility)
+        const handleKeyDown = (e) => {
+            const state = canvasStore.getState();
+            const panSpeed = 50 / state.viewport.zoom;
+
+            switch(e.key) {
+                case 'ArrowUp':
+                    e.preventDefault();
+                    canvasStore.setState({
+                        viewport: { ...state.viewport, y: state.viewport.y + panSpeed }
+                    });
+                    updateCanvasTransform();
+                    renderItems();
+                    break;
+                case 'ArrowDown':
+                    e.preventDefault();
+                    canvasStore.setState({
+                        viewport: { ...state.viewport, y: state.viewport.y - panSpeed }
+                    });
+                    updateCanvasTransform();
+                    renderItems();
+                    break;
+                case 'ArrowLeft':
+                    e.preventDefault();
+                    canvasStore.setState({
+                        viewport: { ...state.viewport, x: state.viewport.x + panSpeed }
+                    });
+                    updateCanvasTransform();
+                    renderItems();
+                    break;
+                case 'ArrowRight':
+                    e.preventDefault();
+                    canvasStore.setState({
+                        viewport: { ...state.viewport, x: state.viewport.x - panSpeed }
+                    });
+                    updateCanvasTransform();
+                    renderItems();
+                    break;
+                case '+':
+                case '=':
+                    e.preventDefault();
+                    zoomIn();
+                    break;
+                case '-':
+                    e.preventDefault();
+                    zoomOut();
+                    break;
+                case '0':
+                    e.preventDefault();
+                    resetView();
+                    break;
+                case 'Escape':
+                    deselectItem();
+                    break;
+                case 'Tab':
+                    // Let default tab navigation work for accessibility
+                    break;
+            }
+        };
+
+        // ============================================
+        // INITIALIZATION
+        // ============================================
+        const init = () => {
+            // Add event listeners with passive: false for wheel/touch
+            container.addEventListener('wheel', handleWheel, { passive: false });
+            container.addEventListener('mousedown', handleMouseDown);
+            window.addEventListener('mousemove', handleMouseMove);
+            window.addEventListener('mouseup', handleMouseUp);
+            window.addEventListener('keydown', handleKeyDown);
+
+            // Touch support
+            let lastTouchDistance = 0;
+
+            container.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 2) {
+                    lastTouchDistance = Math.hypot(
+                        e.touches[0].pageX - e.touches[1].pageX,
+                        e.touches[0].pageY - e.touches[1].pageY
+                    );
+                }
+            }, { passive: false });
+
+            container.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                
+                if (e.touches.length === 2) {
+                    const distance = Math.hypot(
+                        e.touches[0].pageX - e.touches[1].pageX,
+                        e.touches[0].pageY - e.touches[1].pageY
+                    );
+                    const delta = distance - lastTouchDistance;
+                    
+                    const state = canvasStore.getState();
+                    const newZoom = Math.min(
+                        Math.max(0.1, state.viewport.zoom + delta * 0.005),
+                        5
+                    );
+                    
+                    canvasStore.setState({
+                        viewport: { ...state.viewport, zoom: newZoom }
+                    });
+                    updateCanvasTransform();
+                    lastTouchDistance = distance;
+                }
+            }, { passive: false });
+
+            // Button handlers
+            document.getElementById('btn-add-item').addEventListener('click', addItem);
+            document.getElementById('btn-reset-view').addEventListener('click', resetView);
+            document.getElementById('btn-clear-all').addEventListener('click', clearAllItems);
+            document.getElementById('btn-zoom-in').addEventListener('click', zoomIn);
+            document.getElementById('btn-zoom-out').addEventListener('click', zoomOut);
+            
+            document.getElementById('btn-toggle-list').addEventListener('click', () => {
+                listView.classList.toggle('open');
+                announceToScreenReader(listView.classList.contains('open') ? 'List view opened' : 'List view closed');
+            });
+            
+            document.getElementById('btn-close-list').addEventListener('click', () => {
+                listView.classList.remove('open');
+                announceToScreenReader('List view closed');
+            });
+
+            // Add some initial items for demo
+            const initialItems = [
+                { id: 1, x: 0, y: 0, title: 'Origin Point', content: 'Starting position (0, 0)' },
+                { id: 2, x: 400, y: 200, title: 'Sample Node A', content: 'Connected to origin' },
+                { id: 3, x: -300, y: 350, title: 'Sample Node B', content: 'Left side element' },
+                { id: 4, x: 500, y: -250, title: 'Sample Node C', content: 'Top right area' },
+                { id: 5, x: -450, y: -400, title: 'Sample Node D', content: 'Far corner element' },
+            ];
+
+            canvasStore.setState({ items: initialItems });
+
+            // Initial render
+            updateCanvasTransform();
+            renderItems();
+
+            // FPS counter
+            setInterval(() => {
+                const now = performance.now();
+                fps = Math.round((frameCount * 1000) / (now - lastFrameTime));
+                statFps.textContent = fps;
+                frameCount = 0;
+                lastFrameTime = now;
+            }, 1000);
+
+            // Animation loop for smooth rendering
+            const animate = () => {
+                frameCount++;
+                rafId = requestAnimationFrame(animate);
+            };
+            animate();
+
+            announceToScreenReader('Infinite canvas loaded. Use arrow keys to pan, plus and minus to zoom.');
+        };
+
+        // Start the application
+        init();
+    </script>
+</body>
+</html>
+
