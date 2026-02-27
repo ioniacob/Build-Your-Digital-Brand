@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="es" class="h-full">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Celebration Card</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="/_sdk/element_sdk.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&amp;family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&amp;display=swap" rel="stylesheet">
+  <style>
+    @keyframes float {
+      0%, 100% { transform: translateY(0) rotate(0deg); }
+      50% { transform: translateY(-20px) rotate(5deg); }
+    }
+    @keyframes confetti-fall {
+      0% { transform: translateY(-100%) rotate(0deg); opacity: 1; }
+      100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+    }
+    @keyframes sparkle {
+      0%, 100% { opacity: 0; transform: scale(0); }
+      50% { opacity: 1; transform: scale(1); }
+    }
+    @keyframes pulse-glow {
+      0%, 100% { filter: drop-shadow(0 0 10px rgba(255,182,193,0.5)); }
+      50% { filter: drop-shadow(0 0 25px rgba(255,182,193,0.8)); }
+    }
+    @keyframes heart-beat {
+      0%, 100% { transform: scale(1); }
+      15% { transform: scale(1.15); }
+      30% { transform: scale(1); }
+      45% { transform: scale(1.1); }
+    }
+    @keyframes ring-spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    @keyframes fade-in-up {
+      0% { opacity: 0; transform: translateY(30px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+    .confetti {
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      animation: confetti-fall linear forwards;
+      pointer-events: none;
+    }
+    .sparkle {
+      animation: sparkle 1.5s ease-in-out infinite;
+    }
+    .float-animation {
+      animation: float 4s ease-in-out infinite;
+    }
+    .heart-beat {
+      animation: heart-beat 1.2s ease-in-out infinite;
+    }
+    .pulse-glow {
+      animation: pulse-glow 2s ease-in-out infinite;
+    }
+    .fade-in-up {
+      animation: fade-in-up 0.8s ease-out forwards;
+    }
+    .card-container {
+      font-family: 'Playfair Display', serif;
+    }
+    .script-font {
+      font-family: 'Cormorant Garamond', serif;
+    }
+  </style>
+  <style>body { box-sizing: border-box; }</style>
+  <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
+ </head>
+ <body class="h-full m-0 p-0 overflow-auto">
+  <div id="app-wrapper" class="min-h-full w-full flex items-center justify-center p-4 md:p-8" style="background: linear-gradient(135deg, #e0f2fe 0%, #fce7f3 50%, #fdf2f8 100%);"><!-- Confetti Container -->
+   <div id="confetti-container" class="fixed inset-0 pointer-events-none overflow-hidden z-50"></div><!-- Main Card -->
+   <div class="card-container relative max-w-lg w-full mx-auto"><!-- Decorative Rings SVG -->
+    <div class="absolute -top-8 left-1/2 transform -translate-x-1/2 z-10">
+     <svg id="rings-svg" width="80" height="50" viewbox="0 0 80 50" class="pulse-glow cursor-pointer transition-transform hover:scale-110" onclick="triggerRingAnimation()"><defs>
+       <lineargradient id="gold-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style="stop-color:#ffd700" />
+        <stop offset="50%" style="stop-color:#ffec8b" />
+        <stop offset="100%" style="stop-color:#daa520" />
+       </lineargradient>
+      </defs> <circle cx="28" cy="25" r="18" fill="none" stroke="url(#gold-gradient)" stroke-width="4" /> <circle cx="52" cy="25" r="18" fill="none" stroke="url(#gold-gradient)" stroke-width="4" /> <circle cx="28" cy="25" r="12" fill="none" stroke="url(#gold-gradient)" stroke-width="1" opacity="0.5" /> <circle cx="52" cy="25" r="12" fill="none" stroke="url(#gold-gradient)" stroke-width="1" opacity="0.5" />
+     </svg>
+    </div><!-- Card Body -->
+    <div id="card-body" class="relative bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-8 md:p-12 border border-pink-100 overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-3xl" onclick="triggerCelebration()"><!-- Corner Decorations -->
+     <svg class="absolute top-0 left-0 w-24 h-24 text-pink-200 opacity-60" viewbox="0 0 100 100"><path d="M0,0 Q50,20 20,50 Q-10,80 0,100" fill="none" stroke="currentColor" stroke-width="2" /> <circle cx="15" cy="15" r="4" fill="currentColor" class="sparkle" style="animation-delay: 0s;" /> <circle cx="30" cy="25" r="3" fill="currentColor" class="sparkle" style="animation-delay: 0.3s;" /> <circle cx="20" cy="40" r="2" fill="currentColor" class="sparkle" style="animation-delay: 0.6s;" />
+     </svg>
+     <svg class="absolute bottom-0 right-0 w-24 h-24 text-blue-200 opacity-60 transform rotate-180" viewbox="0 0 100 100"><path d="M0,0 Q50,20 20,50 Q-10,80 0,100" fill="none" stroke="currentColor" stroke-width="2" /> <circle cx="15" cy="15" r="4" fill="currentColor" class="sparkle" style="animation-delay: 0.2s;" /> <circle cx="30" cy="25" r="3" fill="currentColor" class="sparkle" style="animation-delay: 0.5s;" /> <circle cx="20" cy="40" r="2" fill="currentColor" class="sparkle" style="animation-delay: 0.8s;" />
+     </svg><!-- Heart SVG -->
+     <div class="flex justify-center mb-6">
+      <svg id="main-heart" width="60" height="55" viewbox="0 0 60 55" class="heart-beat cursor-pointer" onclick="event.stopPropagation(); triggerHeartBurst()"><defs>
+        <lineargradient id="heart-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+         <stop offset="0%" style="stop-color:#f472b6" />
+         <stop offset="100%" style="stop-color:#ec4899" />
+        </lineargradient>
+        <filter id="heart-glow">
+         <fegaussianblur stddeviation="2" result="coloredBlur" />
+         <femerge>
+          <femergenode in="coloredBlur" />
+          <femergenode in="SourceGraphic" />
+         </femerge>
+        </filter>
+       </defs> <path d="M30 50 C10 35, 0 20, 10 10 C20 0, 30 5, 30 15 C30 5, 40 0, 50 10 C60 20, 50 35, 30 50" fill="url(#heart-gradient)" filter="url(#heart-glow)" />
+      </svg>
+     </div><!-- Main Message -->
+     <div class="text-center space-y-4 relative z-10">
+      <p id="main-message" class="script-font text-2xl md:text-3xl italic" style="color: #6b7280;">¡Felicidades!</p>
+      <h1 id="couple-names" class="text-4xl md:text-5xl font-bold bg-gradient-to-r from-pink-400 via-rose-400 to-pink-500 bg-clip-text text-transparent leading-tight py-2">Ion y Jacqueline</h1>
+      <p id="sub-message" class="script-font text-xl md:text-2xl italic" style="color: #9ca3af;">Por su matrimonio</p><!-- Decorative Divider -->
+      <svg class="mx-auto my-6" width="200" height="20" viewbox="0 0 200 20"><defs>
+        <lineargradient id="divider-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+         <stop offset="0%" style="stop-color:#bfdbfe; stop-opacity:0" />
+         <stop offset="50%" style="stop-color:#f9a8d4" />
+         <stop offset="100%" style="stop-color:#bfdbfe; stop-opacity:0" />
+        </lineargradient>
+       </defs> <line x1="0" y1="10" x2="200" y2="10" stroke="url(#divider-gradient)" stroke-width="2" /> <circle cx="100" cy="10" r="4" fill="#f9a8d4" /> <circle cx="85" cy="10" r="2" fill="#f9a8d4" opacity="0.6" /> <circle cx="115" cy="10" r="2" fill="#f9a8d4" opacity="0.6" />
+      </svg><!-- Date -->
+      <p id="date-text" class="text-lg tracking-widest uppercase" style="color: #6b7280;">15 de Junio, 2025</p><!-- Dove SVG -->
+      <div class="flex justify-center mt-6 space-x-4">
+       <svg class="w-12 h-12 float-animation" style="animation-delay: 0s; color: #93c5fd;" viewbox="0 0 50 50"><path fill="currentColor" d="M25 5 C15 5, 10 15, 10 20 C10 25, 15 28, 20 28 L15 35 L25 30 L35 35 L30 28 C35 28, 40 25, 40 20 C40 15, 35 5, 25 5 Z" /> <circle cx="20" cy="18" r="2" fill="#1e3a5f" />
+       </svg>
+       <svg class="w-12 h-12 float-animation transform scale-x-[-1]" style="animation-delay: 0.5s; color: #f9a8d4;" viewbox="0 0 50 50"><path fill="currentColor" d="M25 5 C15 5, 10 15, 10 20 C10 25, 15 28, 20 28 L15 35 L25 30 L35 35 L30 28 C35 28, 40 25, 40 20 C40 15, 35 5, 25 5 Z" /> <circle cx="20" cy="18" r="2" fill="#5f1e3a" />
+       </svg>
+      </div>
+     </div><!-- Click Hint -->
+     <p id="click-hint" class="text-center text-sm mt-8 opacity-60 transition-opacity" style="color: #9ca3af;">✨ Toca la tarjeta para celebrar ✨</p>
+    </div><!-- Floating Hearts Container -->
+    <div id="floating-hearts" class="absolute inset-0 pointer-events-none overflow-visible"></div>
+   </div>
+  </div>
+  <script>
+    const defaultConfig = {
+      couple_names: 'Pablo y Berta',
+      main_message: '¡Felicidades!',
+      sub_message: 'Por su matrimonio',
+      date_text: '21 de Marzo, 2025',
+      background_color: '#fce7f3',
+      text_color: '#6b7280',
+      accent_color: '#ec4899'
+    };
+
+    let config = { ...defaultConfig };
+
+    function createConfetti() {
+      const container = document.getElementById('confetti-container');
+      const colors = ['#f472b6', '#60a5fa', '#fcd34d', '#a78bfa', '#f87171', '#34d399'];
+      const shapes = ['circle', 'square', 'triangle'];
+      
+      for (let i = 0; i < 50; i++) {
+        setTimeout(() => {
+          const confetti = document.createElement('div');
+          confetti.className = 'confetti';
+          confetti.style.left = Math.random() * 100 + '%';
+          confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+          confetti.style.animationDuration = (Math.random() * 3 + 2) + 's';
+          confetti.style.animationDelay = Math.random() * 0.5 + 's';
+          
+          const shape = shapes[Math.floor(Math.random() * shapes.length)];
+          if (shape === 'circle') {
+            confetti.style.borderRadius = '50%';
+          } else if (shape === 'triangle') {
+            confetti.style.width = '0';
+            confetti.style.height = '0';
+            confetti.style.backgroundColor = 'transparent';
+            confetti.style.borderLeft = '6px solid transparent';
+            confetti.style.borderRight = '6px solid transparent';
+            confetti.style.borderBottom = '12px solid ' + colors[Math.floor(Math.random() * colors.length)];
+          }
+          
+          container.appendChild(confetti);
+          
+          setTimeout(() => confetti.remove(), 5000);
+        }, i * 30);
+      }
+    }
+
+    function createFloatingHeart(x, y) {
+      const container = document.getElementById('floating-hearts');
+      const heart = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      heart.setAttribute('width', '30');
+      heart.setAttribute('height', '30');
+      heart.setAttribute('viewBox', '0 0 30 30');
+      heart.style.position = 'absolute';
+      heart.style.left = x + 'px';
+      heart.style.top = y + 'px';
+      heart.style.pointerEvents = 'none';
+      heart.style.transition = 'all 1.5s ease-out';
+      heart.style.opacity = '1';
+      
+      const colors = ['#f472b6', '#ec4899', '#f9a8d4', '#fb7185'];
+      const color = colors[Math.floor(Math.random() * colors.length)];
+      
+      heart.innerHTML = `<path fill="${color}" d="M15 25 C5 17, 0 10, 5 5 C10 0, 15 2, 15 7 C15 2, 20 0, 25 5 C30 10, 25 17, 15 25"/>`;
+      
+      container.appendChild(heart);
+      
+      requestAnimationFrame(() => {
+        heart.style.transform = `translateY(-100px) scale(0.5) rotate(${(Math.random() - 0.5) * 60}deg)`;
+        heart.style.opacity = '0';
+      });
+      
+      setTimeout(() => heart.remove(), 1500);
+    }
+
+    function triggerCelebration() {
+      createConfetti();
+      
+      const card = document.getElementById('card-body');
+      card.style.transform = 'scale(1.02)';
+      setTimeout(() => card.style.transform = 'scale(1)', 200);
+      
+      for (let i = 0; i < 8; i++) {
+        setTimeout(() => {
+          const x = Math.random() * 300 + 50;
+          const y = Math.random() * 200 + 100;
+          createFloatingHeart(x, y);
+        }, i * 100);
+      }
+    }
+
+    function triggerHeartBurst() {
+      const heart = document.getElementById('main-heart');
+      heart.style.transform = 'scale(1.3)';
+      setTimeout(() => heart.style.transform = 'scale(1)', 300);
+      
+      for (let i = 0; i < 12; i++) {
+        setTimeout(() => {
+          createFloatingHeart(
+            150 + (Math.random() - 0.5) * 100,
+            120 + (Math.random() - 0.5) * 50
+          );
+        }, i * 50);
+      }
+    }
+
+    function triggerRingAnimation() {
+      const rings = document.getElementById('rings-svg');
+      rings.style.animation = 'ring-spin 1s ease-in-out';
+      createConfetti();
+      setTimeout(() => rings.style.animation = '', 1000);
+    }
+
+    async function onConfigChange(cfg) {
+      document.getElementById('couple-names').textContent = cfg.couple_names || defaultConfig.couple_names;
+      document.getElementById('main-message').textContent = cfg.main_message || defaultConfig.main_message;
+      document.getElementById('sub-message').textContent = cfg.sub_message || defaultConfig.sub_message;
+      document.getElementById('date-text').textContent = cfg.date_text || defaultConfig.date_text;
+      
+      const wrapper = document.getElementById('app-wrapper');
+      const bgColor = cfg.background_color || defaultConfig.background_color;
+      wrapper.style.background = `linear-gradient(135deg, #e0f2fe 0%, ${bgColor} 50%, #fdf2f8 100%)`;
+      
+      const textColor = cfg.text_color || defaultConfig.text_color;
+      document.getElementById('main-message').style.color = textColor;
+      document.getElementById('sub-message').style.color = textColor;
+      document.getElementById('date-text').style.color = textColor;
+      document.getElementById('click-hint').style.color = textColor;
+    }
+
+    function mapToCapabilities(cfg) {
+      return {
+        recolorables: [
+          {
+            get: () => cfg.background_color || defaultConfig.background_color,
+            set: (value) => {
+              cfg.background_color = value;
+              window.elementSdk.setConfig({ background_color: value });
+            }
+          },
+          {
+            get: () => cfg.text_color || defaultConfig.text_color,
+            set: (value) => {
+              cfg.text_color = value;
+              window.elementSdk.setConfig({ text_color: value });
+            }
+          },
+          {
+            get: () => cfg.accent_color || defaultConfig.accent_color,
+            set: (value) => {
+              cfg.accent_color = value;
+              window.elementSdk.setConfig({ accent_color: value });
+            }
+          }
+        ],
+        borderables: [],
+        fontEditable: {
+          get: () => cfg.font_family || 'Playfair Display',
+          set: (value) => {
+            cfg.font_family = value;
+            window.elementSdk.setConfig({ font_family: value });
+          }
+        },
+        fontSizeable: {
+          get: () => cfg.font_size || 16,
+          set: (value) => {
+            cfg.font_size = value;
+            window.elementSdk.setConfig({ font_size: value });
+          }
+        }
+      };
+    }
+
+    function mapToEditPanelValues(cfg) {
+      return new Map([
+        ['couple_names', cfg.couple_names || defaultConfig.couple_names],
+        ['main_message', cfg.main_message || defaultConfig.main_message],
+        ['sub_message', cfg.sub_message || defaultConfig.sub_message],
+        ['date_text', cfg.date_text || defaultConfig.date_text]
+      ]);
+    }
+
+    if (window.elementSdk) {
+      window.elementSdk.init({
+        defaultConfig,
+        onConfigChange,
+        mapToCapabilities,
+        mapToEditPanelValues
+      });
+      config = window.elementSdk.config;
+    }
+
+    // Initial render
+    onConfigChange(config);
+  </script>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9d47858ae7c97550',t:'MTc3MjE5MzYyNS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
