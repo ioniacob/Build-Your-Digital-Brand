@@ -1,0 +1,2024 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Efficient Prompting for ALL IAs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://cdn.jsdelivr.net/npm/fontsource-inter@5.1.1/latin.css" rel="stylesheet">
+<style>
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --glass-bg: rgba(255, 255, 255, 0.06);
+  --glass-border: rgba(255, 255, 255, 0.12);
+  --glass-shadow: rgba(0, 0, 0, 0.3);
+  --text-primary: rgba(255, 255, 255, 0.92);
+  --text-secondary: rgba(255, 255, 255, 0.65);
+  --accent-1: #7c5cfc;
+  --accent-2: #00d4ff;
+  --accent-3: #ff6ec7;
+  --accent-4: #ffd56b;
+  --accent-5: #6bffa8;
+  --blur-amount: 28px;
+  --transition-speed: 0.35s;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #0a0a1a;
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+  line-height: 1.6;
+}
+
+/* Animated Background */
+.bg-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.bg-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(120px);
+  opacity: 0.4;
+  animation: floatOrb 20s ease-in-out infinite;
+}
+
+.bg-orb:nth-child(1) {
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, var(--accent-1), transparent 70%);
+  top: -10%;
+  left: -5%;
+  animation-duration: 25s;
+}
+
+.bg-orb:nth-child(2) {
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, var(--accent-2), transparent 70%);
+  top: 40%;
+  right: -10%;
+  animation-duration: 30s;
+  animation-delay: -5s;
+}
+
+.bg-orb:nth-child(3) {
+  width: 450px;
+  height: 450px;
+  background: radial-gradient(circle, var(--accent-3), transparent 70%);
+  bottom: -5%;
+  left: 20%;
+  animation-duration: 22s;
+  animation-delay: -10s;
+}
+
+.bg-orb:nth-child(4) {
+  width: 350px;
+  height: 350px;
+  background: radial-gradient(circle, var(--accent-4), transparent 70%);
+  top: 60%;
+  left: 50%;
+  animation-duration: 28s;
+  animation-delay: -15s;
+}
+
+.bg-orb:nth-child(5) {
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(circle, var(--accent-5), transparent 70%);
+  top: 20%;
+  left: 60%;
+  animation-duration: 35s;
+  animation-delay: -8s;
+}
+
+@keyframes floatOrb {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  25% { transform: translate(80px, -60px) scale(1.1); }
+  50% { transform: translate(-40px, 80px) scale(0.9); }
+  75% { transform: translate(60px, 40px) scale(1.05); }
+}
+
+/* Grid Overlay */
+.bg-grid {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: 
+    linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+  background-size: 60px 60px;
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* Liquid Glass Mixin */
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--blur-amount));
+  -webkit-backdrop-filter: blur(var(--blur-amount));
+  border: 1px solid var(--glass-border);
+  box-shadow: 
+    0 8px 32px var(--glass-shadow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.glass-subtle {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Header */
+.header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  padding: 0.75rem 1.5rem;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.header.scrolled {
+  background: rgba(10, 10, 26, 0.85);
+  backdrop-filter: blur(32px);
+  -webkit-backdrop-filter: blur(32px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.header-inner {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  text-decoration: none;
+  color: var(--text-primary);
+  transition: opacity var(--transition-speed);
+}
+
+.brand:hover {
+  opacity: 0.8;
+}
+
+.brand-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+  box-shadow: 0 4px 15px rgba(124, 92, 252, 0.3);
+}
+
+.brand-icon svg {
+  width: 22px;
+  height: 22px;
+  fill: white;
+}
+
+.brand-text {
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.brand-text span {
+  background: linear-gradient(135deg, var(--accent-2), var(--accent-3));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.header-nav {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.nav-link {
+  padding: 0.5rem 1rem;
+  border-radius: 9999px;
+  text-decoration: none;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all var(--transition-speed);
+  border: 1px solid transparent;
+}
+
+.nav-link:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Main Content */
+.main {
+  position: relative;
+  z-index: 2;
+  padding-top: 100px;
+  padding-bottom: 120px;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+}
+
+/* Hero Section */
+.hero {
+  text-align: center;
+  padding: 4rem 1rem 3rem;
+  margin-bottom: 2rem;
+}
+
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 1rem;
+  border-radius: 9999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--accent-2);
+  margin-bottom: 1.5rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.hero h1 {
+  font-size: clamp(2.5rem, 6vw, 4.5rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  margin-bottom: 1.5rem;
+  background: linear-gradient(135deg, #ffffff 0%, var(--accent-2) 50%, var(--accent-3) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.hero p {
+  font-size: clamp(1rem, 2vw, 1.25rem);
+  color: var(--text-secondary);
+  max-width: 700px;
+  margin: 0 auto 2.5rem;
+  line-height: 1.7;
+}
+
+/* Stats Bar */
+.stats-bar {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  flex-wrap: wrap;
+  margin-bottom: 2rem;
+}
+
+.stat-item {
+  text-align: center;
+}
+
+.stat-number {
+  font-size: 2rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.stat-label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 0.25rem;
+}
+
+/* Filter Tabs */
+.filter-bar {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 3rem;
+  padding: 0.5rem;
+  border-radius: 16px;
+  max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.filter-btn {
+  padding: 0.6rem 1.2rem;
+  border-radius: 12px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-speed);
+  font-family: inherit;
+}
+
+.filter-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.filter-btn.active {
+  color: white;
+  background: rgba(124, 92, 252, 0.3);
+  border: 1px solid rgba(124, 92, 252, 0.4);
+}
+
+/* Category Section */
+.category-section {
+  margin-bottom: 3.5rem;
+  animation: fadeInUp 0.6s ease-out both;
+}
+
+.category-section.hidden {
+  display: none;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.category-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.category-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.category-icon.coding {
+  background: linear-gradient(135deg, rgba(124, 92, 252, 0.2), rgba(0, 212, 255, 0.2));
+  border: 1px solid rgba(124, 92, 252, 0.3);
+}
+
+.category-icon.llm {
+  background: linear-gradient(135deg, rgba(255, 110, 199, 0.2), rgba(255, 213, 107, 0.2));
+  border: 1px solid rgba(255, 110, 199, 0.3);
+}
+
+.category-icon.media {
+  background: linear-gradient(135deg, rgba(107, 255, 168, 0.2), rgba(0, 212, 255, 0.2));
+  border: 1px solid rgba(107, 255, 168, 0.3);
+}
+
+.category-icon.music {
+  background: linear-gradient(135deg, rgba(255, 213, 107, 0.2), rgba(255, 110, 199, 0.2));
+  border: 1px solid rgba(255, 213, 107, 0.3);
+}
+
+.category-icon.resources {
+  background: linear-gradient(135deg, rgba(124, 92, 252, 0.2), rgba(107, 255, 168, 0.2));
+  border: 1px solid rgba(124, 92, 252, 0.3);
+}
+
+.category-title {
+  font-size: clamp(1.25rem, 3vw, 1.75rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.category-count {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* Card Grid */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 1rem;
+}
+
+/* Service Card */
+.service-card {
+  border-radius: 16px;
+  padding: 1.25rem;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.service-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--card-accent, var(--accent-1)), transparent);
+  opacity: 0;
+  transition: opacity var(--transition-speed);
+}
+
+.service-card:hover {
+  transform: translateY(-4px);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: 
+    0 16px 48px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.service-card:hover::before {
+  opacity: 1;
+}
+
+.card-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.875rem;
+}
+
+.card-logo {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  flex-shrink: 0;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.card-logo img {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
+.card-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.card-name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.2rem;
+  letter-spacing: -0.01em;
+}
+
+.card-desc {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-type {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.card-type.docs {
+  background: rgba(0, 212, 255, 0.12);
+  color: var(--accent-2);
+  border: 1px solid rgba(0, 212, 255, 0.2);
+}
+
+.card-type.blog {
+  background: rgba(255, 110, 199, 0.12);
+  color: var(--accent-3);
+  border: 1px solid rgba(255, 110, 199, 0.2);
+}
+
+.card-type.guide {
+  background: rgba(255, 213, 107, 0.12);
+  color: var(--accent-4);
+  border: 1px solid rgba(255, 213, 107, 0.2);
+}
+
+.card-type.help {
+  background: rgba(124, 92, 252, 0.12);
+  color: var(--accent-1);
+  border: 1px solid rgba(124, 92, 252, 0.2);
+}
+
+.card-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 0.25rem;
+}
+
+.card-url {
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.35);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 75%;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+.card-arrow {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.05);
+  transition: all var(--transition-speed);
+  flex-shrink: 0;
+}
+
+.card-arrow svg {
+  width: 14px;
+  height: 14px;
+  fill: var(--text-secondary);
+  transition: all var(--transition-speed);
+}
+
+.service-card:hover .card-arrow {
+  background: rgba(124, 92, 252, 0.3);
+}
+
+.service-card:hover .card-arrow svg {
+  fill: white;
+  transform: translate(2px, -2px);
+}
+
+/* Card accent colors */
+.card-accent-purple { --card-accent: var(--accent-1); }
+.card-accent-cyan { --card-accent: var(--accent-2); }
+.card-accent-pink { --card-accent: var(--accent-3); }
+.card-accent-yellow { --card-accent: var(--accent-4); }
+.card-accent-green { --card-accent: var(--accent-5); }
+
+/* Footer Pill */
+.footer-pill {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 200;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 9999px;
+  padding: 0.5rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: slideUpFooter 0.8s ease-out 1s both;
+}
+
+@keyframes slideUpFooter {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.footer-pill:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.18);
+  transform: translateX(-50%) translateY(-2px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.footer-pill a {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: color 0.3s;
+  white-space: nowrap;
+}
+
+.footer-pill:hover a {
+  color: rgba(255, 255, 255, 1);
+}
+
+.footer-pill .arrow-icon {
+  display: inline-flex;
+  transition: transform 0.3s;
+}
+
+.footer-pill:hover .arrow-icon {
+  transform: translateX(3px);
+}
+
+.footer-pill .arrow-icon svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .header-nav {
+    display: none;
+  }
+
+  .main {
+    padding-top: 80px;
+    padding-bottom: 100px;
+  }
+
+  .hero {
+    padding: 2rem 0.5rem 2rem;
+  }
+
+  .card-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stats-bar {
+    gap: 1.5rem;
+  }
+
+  .filter-bar {
+    gap: 0.25rem;
+  }
+
+  .filter-btn {
+    padding: 0.5rem 0.8rem;
+    font-size: 0.75rem;
+  }
+
+  .footer-pill {
+    bottom: 1rem;
+    left: 1rem;
+    right: 1rem;
+    transform: none;
+    justify-content: center;
+    border-radius: 16px;
+    animation: slideUpFooterMobile 0.8s ease-out 1s both;
+  }
+
+  @keyframes slideUpFooterMobile {
+    from {
+      opacity: 0;
+      transform: translateY(30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .footer-pill:hover {
+    transform: translateY(-2px);
+  }
+
+  .footer-pill a {
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero h1 {
+    font-size: 2rem;
+  }
+
+  .service-card {
+    padding: 1rem;
+  }
+
+  .card-logo {
+    width: 38px;
+    height: 38px;
+  }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Selection */
+::selection {
+  background: rgba(124, 92, 252, 0.3);
+  color: white;
+}
+
+/* Liquid Glass Shimmer Effect */
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.service-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.03),
+    transparent
+  );
+  transform: translateX(-100%);
+  transition: none;
+  pointer-events: none;
+}
+
+.service-card:hover::after {
+  animation: shimmer 1.5s ease-in-out;
+}
+
+/* Loading animation for cards */
+.card-grid .service-card:nth-child(1) { animation-delay: 0.05s; }
+.card-grid .service-card:nth-child(2) { animation-delay: 0.1s; }
+.card-grid .service-card:nth-child(3) { animation-delay: 0.15s; }
+.card-grid .service-card:nth-child(4) { animation-delay: 0.2s; }
+.card-grid .service-card:nth-child(5) { animation-delay: 0.25s; }
+.card-grid .service-card:nth-child(6) { animation-delay: 0.3s; }
+.card-grid .service-card:nth-child(7) { animation-delay: 0.35s; }
+.card-grid .service-card:nth-child(8) { animation-delay: 0.4s; }
+
+</style>
+</head>
+<body>
+
+<!-- Background -->
+<div class="bg-canvas">
+  <div class="bg-orb"></div>
+  <div class="bg-orb"></div>
+  <div class="bg-orb"></div>
+  <div class="bg-orb"></div>
+  <div class="bg-orb"></div>
+</div>
+<div class="bg-grid"></div>
+
+<!-- Header -->
+<header class="header" id="header">
+  <div class="header-inner">
+    <a href="https://bigbangsocial.com/" target="_blank" rel="noopener noreferrer" class="brand">
+      <div class="brand-icon">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+        </svg>
+      </div>
+      <div class="brand-text">Big Bang Prompt<span>Hub</span></div>
+    </a>
+    <nav class="header-nav">
+      <a href="#coding" class="nav-link">Coding</a>
+      <a href="#llms" class="nav-link">LLMs</a>
+      <a href="#media" class="nav-link">Media</a>
+      <a href="#music" class="nav-link">Music</a>
+      <a href="#resources" class="nav-link">Resources</a>
+    </nav>
+  </div>
+</header>
+
+<!-- Main Content -->
+<main class="main">
+  
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-badge glass-subtle">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+      Complete Reference 2025
+    </div>
+    <h1>Efficient Prompting for ALL IAs</h1>
+    <p>Your curated collection of official prompting guides, best practices, and documentation for every major AI platform — coding assistants, LLMs, generative media, and more.</p>
+    
+    <div class="stats-bar">
+      <div class="stat-item">
+        <div class="stat-number" id="totalServices">0</div>
+        <div class="stat-label">Services</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-number" id="totalCategories">5</div>
+        <div class="stat-label">Categories</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-number" id="totalDocs">0</div>
+        <div class="stat-label">Guides</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Filter -->
+  <div class="filter-bar glass-subtle" id="filterBar">
+    <button class="filter-btn active" data-filter="all">All</button>
+    <button class="filter-btn" data-filter="coding">🤖 Coding</button>
+    <button class="filter-btn" data-filter="llms">🧠 LLMs</button>
+    <button class="filter-btn" data-filter="media">🎨 Media</button>
+    <button class="filter-btn" data-filter="music">🎵 Music</button>
+    <button class="filter-btn" data-filter="resources">📚 Resources</button>
+  </div>
+
+  <!-- AI Coding Agents & IDEs -->
+  <section class="category-section" id="coding" data-category="coding">
+    <div class="category-header">
+      <div class="category-icon coding">🤖</div>
+      <div>
+        <h2 class="category-title">AI Coding Agents & IDEs</h2>
+        <span class="category-count">23 services</span>
+      </div>
+    </div>
+    <div class="card-grid">
+      <a href="https://docs.replit.com/core-concepts/agent/best-practices#performance-improvements" target="_blank" rel="noopener noreferrer" class="service-card glass card-accent-cyan">
+        <div class="card-top">
+          <div class="card-logo">
+            <img src="https://www.google.com/s2/favicons?domain=replit.com&sz=64" alt="Replit" loading="lazy">
+          </div>
+          <div class="card-info">
+            <div class="card-name">Replit Agent</div>
+            <div class="card-desc">Performance improvements & best practices</div>
+          </div>
+          <span class="card-type docs">Official Docs</span>
+        </div>
+        <div class="card-bottom">
+          <span class="card-url">docs.replit.com</span>
+          <div class="card-arrow">
+            <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+          </div>
+        </div>
+      </a>
+
+      <a href="https://support.bolt.new/best-practices/prompting-effectively" target="_blank" rel="noopener noreferrer" class="service-card glass card-accent-cyan">
+        <div class="card-top">
+          <div class="card-logo">
+            <img src="https://www.google.com/s2/favicons?domain=bolt.new&sz=64" alt="Bolt.new" loading="lazy">
+          </div>
+          <div class="card-info">
+            <div class="card-name">Bolt.new</div>
+            <div class="card-desc">Prompting effectively guide</div>
+          </div>
+          <span class="card-type docs">Official Docs</span>
+        </div>
+        <div class="card-bottom">
+          <span class="card-url">support.bolt.new</span>
+          <div class="card-arrow">
+            <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+          </div>
+        </div>
+      </a>
+
+      <a href="https://docs.windsurf.com/best-practices/prompt-engineering" target="_blank" rel="noopener noreferrer" class="service-card glass card-accent-cyan">
+        <div class="card-top">
+          <div class="card-logo">
+            <img src="https://www.google.com/s2/favicons?domain=windsurf.com&sz=64" alt="Windsurf" loading="lazy">
+          </div>
+          <div class="card-info">
+            <div class="card-name">Windsurf (Codeium)</div>
+            <div class="card-desc">Prompt engineering best practices</div>
+          </div>
+          <span class="card-type docs">Official Docs</span>
+        </div>
+        <div class="card-bottom">
+          <span class="card-url">docs.windsurf.com</span>
+          <div class="card-arrow">
+            <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+          </div>
+        </div>
+      </a>
+
+      <a href="https://docs.lovable.dev/prompting/prompting-one" target="_blank" rel="noopener noreferrer" class="service-card glass card-accent-purple">
+        <div class="card-top">
+          <div class="card-logo">
+            <img src="https://www.google.com/s2/favicons?domain=lovable.dev&sz=64" alt="Lovable" loading="lazy">
+          </div>
+          <div class="card-info">
+            <div class="card-name">Lovable.dev</div>
+            <div class="card-desc">Prompting fundamentals</div>
+          </div>
+          <span class="card-type docs">Official Docs</span>
+        </div>
+        <div class="card-bottom">
+          <span class="card-url">docs.lovable.dev</span>
+          <div class="card-arrow">
+            <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+          </div>
+        </div>
+      </a>
+
+      <a href="https://docs.lovable.dev/prompting/prompting-debugging" target="_blank" rel="noopener noreferrer" class="service-card glass card-accent-purple">
+        <div class="card-top">
+          <div class="card-logo">
+            <img src="https://www.google.com/s2/favicons?domain=lovable.dev&sz=64" alt="Lovable Debugging" loading="lazy">
+          </div>
+          <div class="card-info">
+            <div class="card-name">Lovable (Debugging)</div>
+            <div class="card-desc">Debugging with AI prompts</div>
+          </div>
+          <span class="card-type docs">Official Docs</span>
+        </div>
+        <div class="card-bottom">
+          <span class="card-url">docs.lovable.dev</span>
+          <div class="card-arrow">
+            <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+          </div>
+        </div>
+      </a>
+
+      <a href="https://docs.same.new/essentials/prompting" target="_blank" rel="noopener noreferrer" class="service-card glass card-accent-cyan">
+        <div class="card-top">
+          <div class="card-logo">
+            <img src="https://www.google.com/s2/favicons?domain=same.new&sz=64" alt="Same.new" loading="lazy">
+          </div>
+          <div class="card-info">
+            <div class="card-name">Same.new</div>
+            <div class="card-desc">Essential prompting guide</div>
+          </div>
+          <span class="card-type docs">Official Docs</span>
+        </div>
+        <div class="card-bottom">
+          <span class="card-url">docs.same.new</span>
+          <div class="card-arrow">
+            <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+          </div>
+        </div>
+      </a>
+
+      <a href="https://docs.co.dev/best-practices/prompting" target="_blank" rel="noopener noreferrer" class="service-card glass card-accent-cyan">
+        <div class="card-top">
+          <div class="card-logo">
+            <img src="https://www.google.com/s2/favicons?domain=co.dev&sz=64" alt="co.dev" loading="lazy">
+          </div>
+          <div class="card-info">
+            <div class="card-name">co.dev</div>
+            <div class="card-desc">Prompting best practices</div>
+          </div>
+          <span class="card-type docs">Official Docs</span>
+        </div>
+        <div class="card-bottom">
+          <span class="card-url">docs.co.dev</span>
+          <div class="card-arrow">
+            <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+          </div>
+        </div>
+      </a>
+
+      <a href="https://cursor.com/docs/agent/prompting" target="_blank" rel="noopener noreferrer" class="service-card glass card-accent-purple">
+        <div class="card-top">
+          <div class="card-logo">
+            <img src="https://www.google.com/s2/favicons?domain=cursor.com&sz=64" alt="Cursor" loading="lazy">
+          </div>
+          <div class="card-info">
+            <div class="card-name">Cursor AI</div>
+            <div class="card-desc">Agent prompting docs</div>
+          </div>
+          <span class="card-type docs">Official Docs</span>
+        </div>
+        <div class="card-bottom">
+          <span class="card-url">cursor.com</span>
+          <div class="card-arrow">
+            <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+          </div>
+        </div>
+      </a>
+
+      <a href="https://cursor.com/blog/agent-best-practices" target="_blank" rel="noopener noreferrer" class="service-card glass card-accent-pink">
+        <div class="card-top">
+          <div class="card-logo">
+            <img src="https://www.google.com/s2/favicons?domain=cursor.com&sz=64" alt="Cursor Blog" loading="lazy">
+          </div>
+          <div class="card-info">
+            <div class="card-name">Cursor (Agent Best Practices)</div>
+            <div class="card-desc">Agent best practices blog post</div>
+          </div>
+          <span class="card-type blog">Official Blog</span>
+        </div>
+        <div class="card-bottom">
+          <span class="card-url">cursor.com</span>
+          <div class="card-arrow">
+            <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+          </div>
+        </div>
+      </a>
+
+      <a href="https://docs.github.com/en/copilot/get-started/best-practices" target="_blank" rel="noopener noreferrer" class="service-card glass card-accent-cyan">
+        <div class="card-top">
+          <div class="card-logo">
+            <img src="https://www.google.com/s2/favicons?domain=github.com&sz=64" alt="GitHub Copilot" loading="lazy">
+          </div>
+          <div class="card-info">
+            <div class="card-name">GitHub Copilot</div>
+            <div class="card-desc">Getting started best practices</div>
+          </div>
+          <span class="card-type docs">Official Docs</span>
+        </div>
+        <div class="card-bottom">
+          <span class="card-url">docs.github.com</span>
+          <div class="card-arrow">
+            <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+          </div>
+        </div>
+      </a>
+
+      <a href="https://docs.github.com/copilot/how-tos/agents/copilot-coding-agent/best-practices-for-using-copilot-to-work-on-tasks" target="_blank" rel="noopener noreferrer" class="service-card glass card-accent-cyan">
+        <div class="card-top">
+          <div class="card-logo">
+            <img src="https://www.google.com/s2/favicons?domain=github.com&sz=64" alt="GitHub Copilot Agent" loading="lazy">
+          </div>
+          <div class="card-info">
+            <div class="card-name">GitHub Copilot (Agent Tasks)</div>
+            <div class="card-desc">Best practices for coding agent tasks</div>
+          </div>
+          <span class="card-type docs">Official Docs</span>
+        </div>
+        <div class="card-bottom">
+          <span class="card-url">docs.github.com</span>
+          <div class="card-arrow">
+            <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+          </div>
+        </div>
+      </a>
+
+      <a href="https://docs.continue.dev/customize/deep-dives/prompts" target="_blank" rel="noopener noreferrer" class="service-card glass card-accent-cyan">
+        <div class="card-top">
+          <div class="card-logo">
+            <img src="https://www.google.com/s2/favicons?domain=continue.dev&sz=64" alt="Continue.dev" loading="lazy">
+          </div>
+          <div class="card-info">
+            <div class="card-name">Continue.dev</div>
+            <div class="card-desc">Deep dive into prompts</div>
+          </div>
+          <span class="card-type docs">Official Docs</span>
+        </div>
+        <div class="card-bottom">
+          <span class="card-url">docs.continue.dev</span>
+          <div class="card-arrow">
+            <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+          </div>
+        </div>
+      </a>
+
+      <a href="https://cline.bot/blog/prompt-fundamentals" target="_blank" rel="noopener noreferrer" class="service-card glass card-accent-pink">
+        <div class="card-top">
+          <div class="card-logo">
+            <img src="https://www.google.com/s2/favicons?domain=cline.bot&sz=64" alt="Cline" loading="lazy">
+          </div>
+          <div class="card-info">
+            <div class="card-name">Cline (VSCode)</div>
+            <div class="card-desc">Prompt fundamentals</div>
+          </div>
+          <span class="card-type blog">Official Blog</span>
+        </div>
+        <div class="card-bottom">
+          <span class="card-url">cline.bot</span>
+          <div class="card-arrow">
+            <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+          </div>
+        </div>
+      </a>
+
+      <a href="https://docs.cline.bot/customization/cline-rules" target="_blank" rel="noopener noreferrer" class="service-card glass card-accent-cyan">
+        <div class="card-top">
+          <div class="card-logo">
+            <img src="https://www.google.com/s2/favicons?domain=cline.bot&sz=64" alt="Cline Rules" loading="lazy">
+          </div>
+          <div class="card-info">
+            <div class="card-name">Cline Rules</div>
+            <div class="card-desc">Customization & rules guide</div>
+          </div>
+          <span class="card-type docs">Official Docs</span>
+        </div>
+        <div class="card-bottom">
+          <span class="card-url">docs.cline.bot</span>
+          <div class="card-arrow">
+            <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+          </div>
+        </div>
+      </a>
+
+      <a href="https://docs.roocode.com/advanced-usage/prompt-engineering" target="_blank" rel="noopener noreferrer" class="service-card glass card-accent-cyan">
+        <div class="card-top">
+          <div class="card-logo">
+            <img src="https://www.google.com/s2/favicons?domain=roocode.com&sz=64" alt="Roo Code" loading="lazy">
+          </div>
+          <div class="card-info">
+            <div class="card-name">Roo Code</div>
+            <div class="card-desc">Advanced prompt engineering</div>
+          </div>
+          <span class="card-type docs">Official Docs</span>
+        </div>
+        <div class="card-bottom">
+          <span class="card-url">docs.roocode.com</span>
+          <div class="card-arrow">
+            <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+          </div>
+        </div>
+      </a>
+
+      <a href="https://docs.devin.ai/essential-guidelines/instructing-devin-effectively" target="_blank" rel="noopener noreferrer" class="service-card glass card-accent-cyan">
+        <div class="card-top">
+          <div class="card-logo">
+            <img src="https://www.google.com/s2/favicons?domain=devin.ai&sz=64" alt="Devin AI" loading="lazy">
+          </div>
+          <div class="card-info">
+            <div class="card-name">Devin AI</div>
+            <div class="card-desc">Instructing Devin effectively</div>
+          </div>
+          <span class="card-type docs">Official Docs</span>
+        </div>
+        <div class="card-bottom">
+          <span class="card-url">docs.devin.ai</span>
+          <div class="card-arrow">
+            <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+          </div>
+        </div>
+      </a>
+
+      <a href="https://aider.chat/docs/usage/tips.html" target="_blank" rel="noopener noreferrer" class="service-card glass card-accent-cyan">
+        <div class="card-top">
+          <div class="card-logo">
+            <img src="https://www.google.com/s2/favicons?domain=aider.chat&sz=64" alt="Aider" loading="lazy">
+          </div>
+          <div class="card-info">
+            <div class="card-name">Aider</div>
+            <div class="card-desc">Usage tips & tricks</div>
+          </div>
+          <span class="card-type docs">Official Docs</span>
+        </div>
+        <div class="card-bottom">
+          <span class="card-url">aider.chat</span>
+          <div class="card-arrow">
+            <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+          </div>
+        </div>
+      </a>
+
+      <a href="https://v0.app/docs/text-prompting" target="_blank" rel="noopener noreferrer" class="service-card glass card-accent-purple">
+        <div class="card-top">
+          <div class="card-logo">
+            <img src="https://www.google.com/s2/favicons?domain=v0.app&sz=64" alt="v0" loading="lazy">
+          </div>
+          <div class="card-info">
+            <div class="card-name">v0 (Vercel)</div>
+            <div class="card-desc">Text prompting guide</div>
+          </div>
+          <span class="card-type docs">Official Docs</span>
+        </div>
+        <div class="card-bottom">
+          <span class="card-url">v0.app</span>
+          <div class="card-arrow">
+            <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+          </div>
+        </div>
+      </a>
+
+      <a href="https://jules.google/docs/running-tasks/" target="_blank" rel="noopener noreferrer" class="service-card glass card-accent-cyan">
+        <div class="card-top">
+          <div class="card-logo">
+            <img src="https://www.google.com/s2/favicons?domain=jules.google&sz=64" alt="Jules" loading="lazy">
+          </div>
+          <div class="card-info">
+            <div class="card-name">Jules (Google)</div>
+            <div class="card-desc">Running tasks guide</div>
+          </div>
+          <span class="card-type docs">Official Docs</span>
+        </div>
+        <div class="card-bottom">
+          <span class="card-url">jules.google</span>
+          <div class="card-arrow">
+            <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+          </div>
+        </div>
+      </a>
+
+      <a href="https://firebase.google.com/docs/studio/prompting" target="_blank" rel="noopener noreferrer" class="service-card glass card-accent-cyan">
+        <div class="card-top">
+          <div class="card-logo">
+            <img src="https://www.google.com/s2/favicons?domain=firebase.google.com&sz=64" alt="Firebase Studio" loading="lazy">
+          </div>
+          <div class="card-info">
+            <div class="card-name">Firebase Studio (Google)</div>
+            <div class="card-desc">Studio prompting guide</div>
+          </div>
+          <span class="card-type docs">Official Docs</span>
+        </div>
+        <div class="card-bottom">
+          <span class="card-url">firebase.google.com</span>
+          <div class="card-arrow">
+            <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+          </div>
+        </div>
+      </a>
+
+      <a href="https://docs.qodo.ai/qodo-gen/code-intelligence/best-practices" target="_blank" rel="noopener noreferrer" class="service-card glass card-accent-cyan">
+        <div class="card-top">
+          <div class="card-logo">
+            <img src="https://www.google.com/s2/favicons?domain=qodo.ai&sz=64" alt="Qodo" loading="lazy">
+          </div>
+          <div class="card-info">
+            <div class="card-name">Qodo</div>
+            <div class="card-desc">Code intelligence best practices</div>
+          </div>
+          <span class="card-type docs">Official Docs</span>
+        </div>
+        <div class="card-bottom">
+          <span class="card-url">docs.qodo.ai</span>
+          <div class="card-arrow">
+            <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+          </div>
+        </div>
+      </a>
+
+      <a href="https://docs.aws.amazon.com/prescriptive-guidance/latest/best-practices-code-generation/code-generation.html" target="_blank" rel="noopener noreferrer" class="service-card glass card-accent-cyan">
+        <div class="card-top">
+          <div class="card-logo">
+            <img src="https://www.google.com/s2/favicons?domain=aws.amazon.com&sz=64" alt="Amazon Q" loading="lazy">
+          </div>
+          <div class="card-info">
+            <div class="card-name">Amazon Q Developer</div>
+            <div class="card-desc">Code generation best practices</div>
+          </div>
+          <span class="card-type docs">Official Docs</span>
+        </div>
+        <div class="card-bottom">
+          <span class="card-url">docs.aws.amazon.com</span>
+          <div class="card-arrow">
+            <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+          </div>
+        </div>
+      </a>
+    </div>
+  </section>
+
+  <!-- LLMs / API Platforms -->
+  <section class="category-section" id="llms" data-category="llms">
+    <div class="category-header">
+      <div class="category-icon llm">🧠</div>
+      <div>
+        <h2 class="category-title">LLMs / API Platforms</h2>
+        <span class="category-count">11 services</span>
+      </div>
+    </div>
+    <div class="card-grid">
+      <a href="https://platform.openai.com/docs/guides/prompt-engineering" target="_blank" rel="noopener noreferrer" class="service-card glass card-accent-pink">
+        <div class="card-top">
+          <div class="card-logo">
+            <img src="https://www.google.com/s2/favicons?domain=openai.com&sz=64" alt="OpenAI" loading="lazy">
+          </div>
+          <div class="card-info">
+            <div class="card-name">OpenAI (API)</div>
+            <div class="card-desc">Prompt engineering guide</div>
+          </div>
+          <span class="card-type docs">Official Docs</span>
+        </div>
+        <div class="card-bottom">
+          <span class="card-url">platform.openai.com</span>
+          <div class="card-arrow">
+            <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+          </div>
+        </div>
+      </a>
+
+      <a href="https://help.openai.com/en/articles/10032626-prompt-engineering-best-practices-for-chatgpt" target="_blank" rel="noopener noreferrer" class="service-card glass card-accent-help">
+        <div class="card-top">
+          <div class="card-logo">
+            <img src="https://www.google.com/s2/favicons?domain=openai.com&sz=64" alt="ChatGPT" loading="lazy">
+          </div>
+          <div class="card-info">
+            <div class="card-name">OpenAI (ChatGPT Users)</div>
+            <div class="card-desc">Best practices for ChatGPT</div>
+          </div>
+          <span class="card-type help">Help Center</span>
+        </div>
+        <div class="card-bottom">
+          <span class="card-url">help.openai.com</span>
+          <div class="card-arrow">
+            <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+          </div>
+        </div>
+      </a>
+
+      <a href="https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/overview" target="_blank" rel="noopener noreferrer" class="service-card glass card-accent-cyan">
+        <div class="card-top">
+          <div class="card-logo">
+            <img src="https://www.google.com/s2/favicons?domain=anthropic.com&sz=64" alt="Claude" loading="lazy">
+          </div>
+          <div class="card-info">
+            <div class="card-name">Claude (Anthropic)</div>
+            <div class="card-desc">Prompt engineering overview</div>
+          </div>
+          <span class="card-type docs">Official Docs</span>
+        </div>
+        <div class="card-bottom">
+          <span class="card-url">docs.anthropic.com</span>
+          <div class="card-arrow">
+            <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+          </div>
+        </div>
+      </a>
+
+      <a href="https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices" target="_blank" rel="noopener noreferrer" class="service-card glass card-accent-cyan">
+        <div class="card-top">
+          <div class="card-logo">
+            <img src="https://www.google.com/s2/favicons?domain=claude.com&sz=64" alt="Claude Platform" loading="lazy">
+          </div>
+          <div class="card-info">
+            <div class="card-name">Claude (Best Practices Page)</div>
+            <div class="card-desc">Prompting best practices</div>
+          </div>
+          <span class="card-type docs">Official Docs</span>
+        </div>
+        <div class="card-bottom">
+          <span class="card-url">platform.claude.com</span>
+          <div class="card-arrow">
+            <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+          </div>
+        </div>
+      </a>
+
+      <a href="https://ai.google.dev/gemini-api/docs/prompting-strategies" target="_blank" rel="noopener noreferrer" class="service-card glass card-accent-cyan">
+        <div class="card-top">
+          <div class="card-logo">
+            <img src="https://www.google.com/s2/favicons?domain=ai.google.dev&sz=64" alt="Gemini" loading="lazy">
+          </div>
+          <div class="card-info">
+            <div class="card-name">Gemini API (Google AI)</div>
+            <div class="card-desc">Prompting strategies</div>
+          </div>
+          <span class="card-type docs">Official Docs</span>
+        </div>
+        <div class="card-bottom">
+          <span class="card-url">ai.google.dev</span>
+          <div class="card-arrow">
+            <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+          </div>
+        </div>
+      </a>
+
+      <a href="https://docs.cloud.google.com/vertex-ai/generative-ai/docs/learn/prompts/introduction-prompt-design" target="_blank" rel="noopener noreferrer" class="service-card glass card-accent-cyan">
+        <div class="card-top">
+          <div class="card-logo">
+            <img src="https://www.google.com/s2/favicons?domain=cloud.google.com&sz=64" alt="Vertex AI" loading="lazy">
+          </div>
+          <div class="card-info">
+            <div class="card-name">Vertex AI (Gemini)</div>
+            <div class="card-desc">Introduction to prompt design</div>
+          </div>
+          <span class="card-type docs">Official Docs</span>
+        </div>
+        <div class="card-bottom">
+          <span class="card-url">docs.cloud.google.com</span>
+          <div class="card-arrow">
+            <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+          </div>
+        </div>
+      </a>
+
+      <a href="https://docs.mistral.ai/capabilities/completion/prompting_capabilities" target="_blank" rel="noopener noreferrer" class="service-card glass card-accent-cyan">
+        <div class="card-top">
+          <div class="card-logo">
+            <img src="https://www.google.com/s2/favicons?domain=mistral.ai&sz=64" alt="Mistral" loading="lazy">
+          </div>
+          <div class="card-info">
+            <div class="card-name">Mistral AI</div>
+            <div class="card-desc">Prompting capabilities</div>
+          </div>
+          <span class="card-type docs">Official Docs</span>
+        </div>
+        <div class="card-bottom">
+          <span class="card-url">docs.mistral.ai</span>
+          <div class="card-arrow">
+            <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+          </div>
+        </div>
+      </a>
+
+      <a href="https://www.llama.com/docs/how-to-guides/prompting/" target="_blank" rel="noopener noreferrer" class="service-card glass card-accent-yellow">
+        <div class="card-top">
+          <div class="card-logo">
+            <img src="https://www.google.com/s2/favicons?domain=llama.com&sz=64" alt="Llama" loading="lazy">
+          </div>
+          <div class="card-info">
+            <div class="card-name">Llama (Meta)</div>
+            <div class="card-desc">Prompting how-to guide</div>
+          </div>
+          <span class="card-type docs">Official Docs</span>
+        </div>
+        <div class="card-bottom">
+          <span class="card-url">llama.com</span>
+          <div class="card-arrow">
+            <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+          </div>
+        </div>
+      </a>
+
+      <a href="https://huggingface.co/docs/transformers/tasks/prompting" target="_blank" rel="noopener noreferrer" class="service-card glass card-accent-yellow">
+        <div class="card-top">
+          <div class="card-logo">
+            <img src="https://www.google.com/s2/favicons?domain=huggingface.co&sz=64" alt="Hugging Face" loading="lazy">
+          </div>
+          <div class="card-info">
+            <div class="card-name">Hugging Face (Transformers)</div>
+            <div class="card-desc">Prompting tasks guide</div>
+          </div>
+          <span class="card-type docs">Official Docs</span>
+        </div>
+        <div class="card-bottom">
+          <span class="card-url">huggingface.co</span>
+          <div class="card-arrow">
+            <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+          </div>
+        </div>
+      </a>
+
+      <a href="https://docs.perplexity.ai/docs/agent-api/prompt-guide" target="_blank" rel="noopener noreferrer" class="service-card glass card-accent-cyan">
+        <div class="card-top">
+          <div class="card-logo">
+            <img src="https://www.google.com/s2/favicons?domain=perplexity.ai&sz=64" alt="Perplexity API" loading="lazy">
+          </div>
+          <div class="card-info">
+            <div class="card-name">Perplexity AI (API)</div>
+            <div class="card-desc">Agent API prompt guide</div>
+          </div>
+          <span class="card-type docs">Official Docs</span>
+        </div>
+        <div class="card-bottom">
+          <span class="card-url">docs.perplexity.ai</span>
+          <div class="card-arrow">
+            <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+          </div>
+        </div>
+      </a>
+
+      <a href="https://www.perplexity.ai/help-center/en/articles/10352971-practical-tips-for-using-perplexity" target="_blank" rel="noopener noreferrer" class="service-card glass card-accent-help">
+        <div class="card-top">
+          <div class="card-logo">
+            <img src="https://www.google.com/s2/favicons?domain=perplexity.ai&sz=64" alt="Perplexity Users" loading="lazy">
+          </div>
+          <div class="card-info">
+            <div class="card-name">Perplexity (Users)</div>
+            <div class="card-desc">Practical tips for users</div>
+          </div>
+          <span class="card-type help">Help Center</span>
+        </div>
+        <div class="card-bottom">
+          <span class="card-url">perplexity.ai</span>
+          <div class="card-arrow">
+            <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+          </div>
+        </div>
+      </a>
+    </div>
+  </section>
+
+  <!-- Generative Media -->
+  <section class="category-section" id="media" data-category="media">
+    <div class="category-header">
+      <div class="category-icon media">🎨</div>
+      <div>
+        <h2 class="category-title">Generative Media (Image / Video / Audio)</h2>
+        <span class="category-count">8 services</span>
+      </div>
+    </div>
+    <div class="card-grid">
+      <a href="https://docs.midjourney.com/hc/en-us/articles/32023408776205-Prompt-Basics" target="_blank" rel="noopener noreferrer" class="service-card glass card-accent-green">
+        <div class="card-top">
+          <div class="card-logo">
+            <img src="https://www.google.com/s2/favicons?domain=midjourney.com&sz=64" alt="Midjourney" loading="lazy">
+          </div>
+          <div class="card-info">
+            <div class="card-name">Midjourney</div>
+            <div class="card-desc">Prompt basics guide</div>
+          </div>
+          <span class="card-type docs">Official Docs</span>
+        </div>
+        <div class="card-bottom">
+          <span class="card-url">docs.midjourney.com</span>
+          <div class="card-arrow">
+            <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+          </div>
+        </div>
+      </a>
+
+      <a href="https://help.runwayml.com/hc/en-us/articles/39789879462419-Gen-4-Video-Prompting-Guide" target="_blank" rel="noopener noreferrer" class="service-card glass card-accent-green">
+        <div class="card-top">
+          <div class="card-logo">
+            <img src="https://www.google.com/s2/favicons?domain=runwayml.com&sz=64" alt="Runway Gen-4 Video" loading="lazy">
+          </div>
+          <div class="card-info">
+            <div class="card-name">Runway ML (Gen-4 Video)</div>
+            <div class="card-desc">Video prompting guide</div>
+          </div>
+          <span class="card-type docs">Official Docs</span>
+        </div>
+        <div class="card-bottom">
+          <span class="card-url">help.runwayml.com</span>
+          <div class="card-arrow">
+            <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+          </div>
+        </div>
+      </a>
+
+      <a href="https://help.runwayml.com/hc/en-us/articles/35694045317139-Gen-4-Image-Prompting-Guide" target="_blank" rel="noopener noreferrer" class="service-card glass card-accent-green">
+        <div class="card-top">
+          <div class="card-logo">
+            <img src="https://www.google.com/s2/favicons?domain=runwayml.com&sz=64" alt="Runway Gen-4 Image" loading="lazy">
+          </div>
+          <div class="card-info">
+            <div class="card-name">Runway ML (Gen-4 Image)</div>
+            <div class="card-desc">Image prompting guide</div>
+          </div>
+          <span class="card-type docs">Official Docs</span>
+        </div>
+        <div class="card-bottom">
+          <span class="card-url">help.runwayml.com</span>
+          <div class="card-arrow">
+            <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+          </div>
+        </div>
+      </a>
+
+      <a href="https://academy.runwayml.com/guides/prompting-guide" target="_blank" rel="noopener noreferrer" class="service-card glass card-accent-green">
+        <div class="card-top">
+          <div class="card-logo">
+            <img src="https://www.google.com/s2/favicons?domain=runwayml.com&sz=64" alt="Runway Academy" loading="lazy">
+          </div>
+          <div class="card-info">
+            <div class="card-name">Runway Academy</div>
+            <div class="card-desc">Comprehensive prompting guide</div>
+          </div>
+          <span class="card-type docs">Official Docs</span>
+        </div>
+        <div class="card-bottom">
+          <span class="card-url">academy.runwayml.com</span>
+          <div class="card-arrow">
+            <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+          </div>
+        </div>
+      </a>
+
+      <a href="https://elevenlabs.io/docs/eleven-agents/best-practices/prompting-guide" target="_blank" rel="noopener noreferrer" class="service-card glass card-accent-green">
+        <div class="card-top">
+          <div class="card-logo">
+            <img src="https://www.google.com/s2/favicons?domain=elevenlabs.io&sz=64" alt="ElevenLabs Agents" loading="lazy">
+          </div>
+          <div class="card-info">
+            <div class="card-name">ElevenLabs (Agents)</div>
+            <div class="card-desc">Agent prompting guide</div>
+          </div>
+          <span class="card-type docs">Official Docs</span>
+        </div>
+        <div class="card-bottom">
+          <span class="card-url">elevenlabs.io</span>
+          <div class="card-arrow">
+            <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+          </div>
+        </div>
+      </a>
+
+      <a href="https://elevenlabs.io/docs/overview/capabilities/text-to-speech/best-practices" target="_blank" rel="noopener noreferrer" class="service-card glass card-accent-green">
+        <div class="card-top">
+          <div class="card-logo">
+            <img src="https://www.google.com/s2/favicons?domain=elevenlabs.io&sz=64" alt="ElevenLabs TTS" loading="lazy">
+          </div>
+          <div class="card-info">
+            <div class="card-name">ElevenLabs (TTS Best Practices)</div>
+            <div class="card-desc">Text-to-speech best practices</div>
+          </div>
+          <span class="card-type docs">Official Docs</span>
+        </div>
+        <div class="card-bottom">
+          <span class="card-url">elevenlabs.io</span>
+          <div class="card-arrow">
+            <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+          </div>
+        </div>
+      </a>
+
+      <a href="https://intercom.help/leonardo-ai/en/articles/8067671-prompting-tips-tricks" target="_blank" rel="noopener noreferrer" class="service-card glass card-accent-help">
+        <div class="card-top">
+          <div class="card-logo">
+            <img src="https://www.google.com/s2/favicons?domain=leonardo-ai&sz=64" alt="Leonardo.Ai" loading="lazy">
+          </div>
+          <div class="card-info">
+            <div class="card-name">Leonardo.Ai</div>
+            <div class="card-desc">Prompting tips & tricks</div>
+          </div>
+          <span class="card-type help">Help Center</span>
+        </div>
+        <div class="card-bottom">
+          <span class="card-url">intercom.help/leonardo-ai</span>
+          <div class="card-arrow">
+            <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+          </div>
+        </div>
+      </a>
+
+      <a href="https://stability.ai/learning-hub/stable-diffusion-3-5-prompt-guide" target="_blank" rel="noopener noreferrer" class="service-card glass card-accent-green">
+        <div class="card-top">
+          <div class="card-logo">
+            <img src="https://www.google.com/s2/favicons?domain=stability.ai&sz=64" alt="Stability AI" loading="lazy">
+          </div>
+          <div class="card-info">
+            <div class="card-name">Stability AI (SD 3.5)</div>
+            <div class="card-desc">SD 3.5 prompt guide</div>
+          </div>
+          <span class="card-type docs">Official Docs</span>
+        </div>
+        <div class="card-bottom">
+          <span class="card-url">stability.ai</span>
+          <div class="card-arrow">
+            <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+          </div>
+        </div>
+      </a>
+    </div>
+  </section>
+
+  <!-- Music Generation -->
+  <section class="category-section" id="music" data-category="music">
+    <div class="category-header">
+      <div class="category-icon music">🎵</div>
+      <div>
+        <h2 class="category-title">Music Generation</h2>
+        <span class="category-count">2 services</span>
+      </div>
+    </div>
+    <div class="card-grid">
+      <a href="https://howtopromptsuno.com/making-music" target="_blank" rel="noopener noreferrer" class="service-card glass card-accent-yellow">
+        <div class="card-top">
+          <div class="card-logo">
+            <img src="https://www.google.com/s2/favicons?domain=howtopromptsuno.com&sz=64" alt="Suno AI" loading="lazy">
+          </div>
+          <div class="card-info">
+            <div class="card-name">Suno AI</div>
+            <div class="card-desc">Making music with prompts</div>
+          </div>
+          <span class="card-type guide">Community Guide</span>
+        </div>
+        <div class="card-bottom">
+          <span class="card-url">howtopromptsuno.com</span>
+          <div class="card-arrow">
+            <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+          </div>
+        </div>
+      </a>
+
+      <a href="https://www.udio.com/guide" target="_blank" rel="noopener noreferrer" class="service-card glass card-accent-yellow">
+        <div class="card-top">
+          <div class="card-logo">
+            <img src="https://www.google.com/s2/favicons?domain=udio.com&sz=64" alt="Udio AI" loading="lazy">
+          </div>
+          <div class="card-info">
+            <div class="card-name">Udio AI</div>
+            <div class="card-desc">Official guide page</div>
+          </div>
+          <span class="card-type docs">Official Page</span>
+        </div>
+        <div class="card-bottom">
+          <span class="card-url">udio.com</span>
+          <div class="card-arrow">
+            <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+          </div>
+        </div>
+      </a>
+    </div>
+  </section>
+
+  <!-- General Resources -->
+  <section class="category-section" id="resources" data-category="resources">
+    <div class="category-header">
+      <div class="category-icon resources">📚</div>
+      <div>
+        <h2 class="category-title">General Prompting Resources (Bonus)</h2>
+        <span class="category-count">5 resources</span>
+      </div>
+    </div>
+    <div class="card-grid">
+      <a href="https://www.promptingguide.ai" target="_blank" rel="noopener noreferrer" class="service-card glass card-accent-purple">
+        <div class="card-top">
+          <div class="card-logo">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(124,92,252,0.8)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          </div>
+          <div class="card-info">
+            <div class="card-name">Prompt Engineering Guide</div>
+            <div class="card-desc">Comprehensive prompt engineering resource</div>
+          </div>
+          <span class="card-type guide">Independent Resource</span>
+        </div>
+        <div class="card-bottom">
+          <span class="card-url">promptingguide.ai</span>
+          <div class="card-arrow">
+            <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+          </div>
+        </div>
+      </a>
+
+      <a href="https://www.promptingguide.ai/introduction/tips" target="_blank" rel="noopener noreferrer" class="service-card glass card-accent-purple">
+        <div class="card-top">
+          <div class="card-logo">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(124,92,252,0.8)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          </div>
+          <div class="card-info">
+            <div class="card-name">Prompt Engineering Guide (Tips)</div>
+            <div class="card-desc">Introduction tips & techniques</div>
+          </div>
+          <span class="card-type guide">Independent Resource</span>
+        </div>
+        <div class="card-bottom">
+          <span class="card-url">promptingguide.ai</span>
+          <div class="card-arrow">
+            <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+          </div>
+        </div>
+      </a>
+
+      <a href="https://lovable.dev/blog/2025-01-16-lovable-prompting-handbook" target="_blank" rel="noopener noreferrer" class="service-card glass card-accent-pink">
+        <div class="card-top">
+          <div class="card-logo">
+            <img src="https://www.google.com/s2/favicons?domain=lovable.dev&sz=64" alt="Lovable Bible" loading="lazy">
+          </div>
+          <div class="card-info">
+            <div class="card-name">Lovable Prompting Bible</div>
+            <div class="card-desc">Complete prompting handbook</div>
+          </div>
+          <span class="card-type blog">Official Blog</span>
+        </div>
+        <div class="card-bottom">
+          <span class="card-url">lovable.dev</span>
+          <div class="card-arrow">
+            <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+          </div>
+        </div>
+      </a>
+
+      <a href="https://bolt.new/blog/prompting-tips-for-bolt" target="_blank" rel="noopener noreferrer" class="service-card glass card-accent-pink">
+        <div class="card-top">
+          <div class="card-logo">
+            <img src="https://www.google.com/s2/favicons?domain=bolt.new&sz=64" alt="Bolt Blog" loading="lazy">
+          </div>
+          <div class="card-info">
+            <div class="card-name">Bolt Blog (8 Tips)</div>
+            <div class="card-desc">8 prompting tips for Bolt</div>
+          </div>
+          <span class="card-type blog">Official Blog</span>
+        </div>
+        <div class="card-bottom">
+          <span class="card-url">bolt.new</span>
+          <div class="card-arrow">
+            <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+          </div>
+        </div>
+      </a>
+
+      <a href="https://github.blog/developer-skills/github/how-to-write-better-prompts-for-github-copilot/" target="_blank" rel="noopener noreferrer" class="service-card glass card-accent-pink">
+        <div class="card-top">
+          <div class="card-logo">
+            <img src="https://www.google.com/s2/favicons?domain=github.blog&sz=64" alt="GitHub Blog" loading="lazy">
+          </div>
+          <div class="card-info">
+            <div class="card-name">GitHub Blog (Copilot Prompts)</div>
+            <div class="card-desc">How to write better prompts for Copilot</div>
+          </div>
+          <span class="card-type blog">Official Blog</span>
+        </div>
+        <div class="card-bottom">
+          <span class="card-url">github.blog</span>
+          <div class="card-arrow">
+            <svg viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+          </div>
+        </div>
+      </a>
+    </div>
+  </section>
+
+</main>
+
+<!-- Footer Pill -->
+<div class="footer-pill">
+  <a href="https://bigbangsocial.com/" target="_blank" rel="noopener noreferrer">
+    Let's add this to your brand: Contact us
+    <span class="arrow-icon">
+      <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+    </span>
+  </a>
+</div>
+
+<script>
+// Header scroll effect
+const header = document.getElementById('header');
+let lastScroll = 0;
+
+window.addEventListener('scroll', () => {
+  const currentScroll = window.pageYOffset;
+  if (currentScroll > 50) {
+    header.classList.add('scrolled');
+  } else {
+    header.classList.remove('scrolled');
+  }
+  lastScroll = currentScroll;
+});
+
+// Filter functionality
+const filterBtns = document.querySelectorAll('.filter-btn');
+const sections = document.querySelectorAll('.category-section');
+
+filterBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    filterBtns.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    
+    const filter = btn.dataset.filter;
+    
+    sections.forEach((section, index) => {
+      if (filter === 'all' || section.dataset.category === filter) {
+        section.classList.remove('hidden');
+        section.style.animation = `fadeInUp 0.6s ease-out ${index * 0.1}s both`;
+      } else {
+        section.classList.add('hidden');
+      }
+    });
+  });
+});
+
+// Animate stats counter
+function animateCounter(element, target, duration = 2000) {
+  let start = 0;
+  const increment = target / (duration / 16);
+  
+  function update() {
+    start += increment;
+    if (start < target) {
+      element.textContent = Math.floor(start);
+      requestAnimationFrame(update);
+    } else {
+      element.textContent = target;
+    }
+  }
+  
+  update();
+}
+
+// Count total services and docs
+let totalServices = 0;
+let totalDocs = 0;
+
+document.querySelectorAll('.service-card').forEach(card => {
+  totalServices++;
+});
+
+document.querySelectorAll('.card-type.docs').forEach(el => totalDocs++);
+
+// Intersection Observer for counter animation
+const statsObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      animateCounter(document.getElementById('totalServices'), totalServices);
+      animateCounter(document.getElementById('totalDocs'), totalDocs);
+      statsObserver.disconnect();
+    }
+  });
+}, { threshold: 0.5 });
+
+const statsBar = document.querySelector('.stats-bar');
+if (statsBar) statsObserver.observe(statsBar);
+
+// Intersection Observer for card animations
+const cardObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.style.opacity = '1';
+      entry.target.style.transform = 'translateY(0)';
+    }
+  });
+}, { 
+  threshold: 0.1,
+  rootMargin: '0px 0px -50px 0px'
+});
+
+document.querySelectorAll('.service-card').forEach(card => {
+  card.style.opacity = '0';
+  card.style.transform = 'translateY(20px)';
+  card.style.transition = 'opacity 0.6s ease-out, transform 0.6s ease-out';
+  cardObserver.observe(card);
+});
+
+// Smooth scroll for nav links
+document.querySelectorAll('.nav-link').forEach(link => {
+  link.addEventListener('click', (e) => {
+    e.preventDefault();
+    const targetId = link.getAttribute('href').substring(1);
+    const targetSection = document.getElementById(targetId);
+    
+    if (targetSection) {
+      targetSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      
+      // Activate corresponding filter
+      filterBtns.forEach(b => b.classList.remove('active'));
+      const matchingBtn = document.querySelector(`.filter-btn[data-filter="${targetId}"]`);
+      if (matchingBtn) {
+        matchingBtn.classList.add('active');
+        // Show all sections, then filter
+        sections.forEach(s => s.classList.remove('hidden'));
+      }
+    }
+  });
+});
+
+// Mouse parallax effect on background orbs
+document.addEventListener('mousemove', (e) => {
+  const x = (e.clientX / window.innerWidth - 0.5) * 2;
+  const y = (e.clientY / window.innerHeight - 0.5) * 2;
+  
+  document.querySelectorAll('.bg-orb').forEach((orb, index) => {
+    const speed = (index + 1) * 8;
+    orb.style.transform = `translate(${x * speed}px, ${y * speed}px)`;
+  });
+});
+</script>
+</body>
+</html>
+
