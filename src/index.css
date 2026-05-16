@@ -1,5 +1,5 @@
-@import "tailwindcss";
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import "tailwindcss";
 
 /* Tailwind v4 @theme block - Ignore IDE "Unknown at rule" warnings */
 @theme {
@@ -97,4 +97,14 @@ body {
 ::selection {
   background: rgba(124, 92, 252, 0.3);
   color: white;
+}
+
+@keyframes modalSlideUp {
+  from { opacity: 0; transform: translateY(40px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }

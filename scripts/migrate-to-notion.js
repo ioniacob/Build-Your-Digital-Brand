@@ -63,7 +63,7 @@ async function migrate() {
             rich_text: [{ text: { content: summary } }]
           },
           'Type': {
-            select: { name: 'Article' }
+            select: { name: normalizedType }
           }
         },
         icon: {

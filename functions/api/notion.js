@@ -10,6 +10,41 @@ export async function onRequest(context) {
     });
   }
 
+  const { searchParams } = new URL(context.request.url);
+  const type = searchParams.get('type');
+  const id = searchParams.get('id');
+
+  if (type === 'content' && id) {
+    try {
+      const response = await fetch(`https://api.notion.com/v1/blocks/${id}/children`, {
+        headers: {
+          "Authorization": `Bearer ${NOTION_API_KEY}`,
+          "Notion-Version": "2022-06-28",
+        },
+      });
+      const data = await response.json();
+      return new Response(JSON.stringify(data), { headers: { "Content-Type": "application/json" } });
+    } catch (error) {
+      return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { "Content-Type": "application/json" } });
+    }
+  }
+
+  if (type === 'comments' && id) {
+    try {
+      const response = await fetch(`https://api.notion.com/v1/comments?block_id=${id}`, {
+        headers: {
+          "Authorization": `Bearer ${NOTION_API_KEY}`,
+          "Notion-Version": "2022-06-28",
+        },
+      });
+      const data = await response.json();
+      return new Response(JSON.stringify(data), { headers: { "Content-Type": "application/json" } });
+    } catch (error) {
+      return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { "Content-Type": "application/json" } });
+    }
+  }
+
+  // Default: Fetch database items
   try {
     const response = await fetch(`https://api.notion.com/v1/databases/${DATABASE_ID}/query`, {
       method: "POST",
@@ -19,23 +54,13 @@ export async function onRequest(context) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        sorts: [
-          {
-            property: "Publishing/Release Date",
-            direction: "descending",
-          },
-        ],
+        sorts: [{ property: "Publishing/Release Date", direction: "descending" }],
       }),
     });
 
     const data = await response.json();
-    return new Response(JSON.stringify(data), {
-      headers: { "Content-Type": "application/json" },
-    });
+    return new Response(JSON.stringify(data), { headers: { "Content-Type": "application/json" } });
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { "Content-Type": "application/json" } });
   }
 }

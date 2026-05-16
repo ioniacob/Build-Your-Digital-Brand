@@ -1,13 +1,13 @@
 import React from 'react';
 import { ExternalLink, Star, User } from 'lucide-react';
 
-const ServiceCard = ({ item }) => {
+const ServiceCard = ({ item, onSelect }) => {
   const getAccentClass = (type) => {
     const types = {
-      'Coding': 'border-accent-2/20 hover:border-accent-2/50',
-      'LLM': 'border-accent-3/20 hover:border-accent-3/50',
-      'Media': 'border-accent-5/20 hover:border-accent-5/50',
-      'Resources': 'border-accent-1/20 hover:border-accent-1/50',
+      'Coding': 'border-accent-2/20 hover:border-accent-2/50 shadow-accent-2/5',
+      'LLM': 'border-accent-3/20 hover:border-accent-3/50 shadow-accent-3/5',
+      'Media': 'border-accent-5/20 hover:border-accent-5/50 shadow-accent-5/5',
+      'Resources': 'border-accent-1/20 hover:border-accent-1/50 shadow-accent-1/5',
       'Article': 'border-white/10 hover:border-white/30'
     };
     return types[type] || types['Article'];
@@ -24,11 +24,9 @@ const ServiceCard = ({ item }) => {
   };
 
   return (
-    <a 
-      href={item.link} 
-      target="_blank" 
-      rel="noopener noreferrer"
-      className={`service-card glass p-7 rounded-3xl transition-all duration-400 group relative flex flex-col gap-5 border ${getAccentClass(item.type)} hover:-translate-y-2 hover:shadow-2xl`}
+    <div 
+      onClick={() => onSelect(item)}
+      className={`service-card glass p-7 rounded-3xl transition-all duration-400 group relative flex flex-col gap-5 border cursor-pointer ${getAccentClass(item.type)} hover:-translate-y-2 hover:shadow-2xl`}
     >
       <div className="card-top flex items-start gap-4">
         <div className="card-logo w-11 h-11 rounded-xl flex items-center justify-center text-xl bg-white/5 border border-white/10">
@@ -60,7 +58,7 @@ const ServiceCard = ({ item }) => {
           <ExternalLink size={14} className="text-white/50 group-hover:text-white group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
         </div>
       </div>
-    </a>
+    </div>
   );
 };
 

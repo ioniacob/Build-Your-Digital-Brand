@@ -7,29 +7,87 @@ import ServiceCard from './components/ServiceCard';
 import { fetchNotionDatabase } from './lib/notion';
 import { Search, Loader2 } from 'lucide-react';
 
+import Modal from './components/Modal';
+
+const categories = ['All', 'Coding', 'LLM', 'Media', 'Music', 'Resources'];
+
 function App() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('All');
   const [search, setSearch] = useState('');
+  const [selectedItem, setSelectedItem] = useState(null);
 
   useEffect(() => {
     const loadData = async () => {
-      const data = await fetchNotionDatabase();
-      setItems(data);
-      setLoading(false);
+      try {
+        const data = await fetchNotionDatabase();
+        setItems(data);
+      } finally {
+        setLoading(false);
+      }
     };
     loadData();
   }, []);
 
-  const categories = ['All', 'Coding', 'LLM', 'Media', 'Music', 'Resources'];
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace('#', '').toLowerCase();
+      if (!hash) {
+        setFilter('All');
+        setSelectedItem(null);
+        return;
+      }
+      
+      const foundCategory = categories.find(c => c.toLowerCase() === hash);
+      if (foundCategory) {
+        setFilter(foundCategory);
+        setSelectedItem(null);
+        return;
+      }
+
+      if (items.length > 0) {
+        const foundItem = items.find(i => i.slug.toLowerCase() === hash);
+        if (foundItem) {
+          setSelectedItem(foundItem);
+        }
+      }
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    if (!loading) handleHashChange();
+
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, [items, loading]);
 
   const filteredItems = items.filter(item => {
-    const matchesFilter = filter === 'All' || item.type === filter;
-    const matchesSearch = item.name.toLowerCase().includes(search.toLowerCase()) || 
-                          item.summary.toLowerCase().includes(search.toLowerCase());
+    const itemType = item.type || 'All';
+    const matchesFilter = filter === 'All' || itemType.toLowerCase() === filter.toLowerCase();
+    const matchesSearch = (item.name || '').toLowerCase().includes(search.toLowerCase()) || 
+                          (item.summary || '').toLowerCase().includes(search.toLowerCase());
     return matchesFilter && matchesSearch;
   });
+
+  const navigateItem = (direction) => {
+    if (!selectedItem) return;
+    const currentIndex = filteredItems.findIndex(i => i.id === selectedItem.id);
+    let nextIndex = currentIndex + direction;
+    if (nextIndex < 0) nextIndex = filteredItems.length - 1;
+    if (nextIndex >= filteredItems.length) nextIndex = 0;
+    setSelectedItem(filteredItems[nextIndex]);
+  };
+
+  useEffect(() => {
+    if (selectedItem) {
+      window.location.hash = selectedItem.slug;
+    } else if (window.location.hash) {
+      const currentHash = window.location.hash.replace('#', '').toLowerCase();
+      const isCategory = categories.some(c => c.toLowerCase() === currentHash);
+      if (!isCategory) {
+        window.history.pushState("", document.title, window.location.pathname + window.location.search);
+      }
+    }
+  }, [selectedItem]);
 
   return (
     <div className="min-h-screen bg-[#0a0a1a] text-white selection:bg-accent-1/30 selection:text-white">
@@ -80,7 +138,7 @@ function App() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-12 animate-[fadeInUp_0.6s_ease-out]">
             {filteredItems.length > 0 ? (
               filteredItems.map(item => (
-                <ServiceCard key={item.id} item={item} />
+                <ServiceCard key={item.id} item={item} onSelect={setSelectedItem} />
               ))
             ) : (
               <div className="col-span-full text-center py-20">
@@ -90,6 +148,14 @@ function App() {
           </div>
         )}
       </main>
+
+      <Modal 
+        isOpen={!!selectedItem} 
+        onClose={() => setSelectedItem(null)} 
+        item={selectedItem}
+        onPrev={() => navigateItem(-1)}
+        onNext={() => navigateItem(1)}
+      />
 
       {/* Footer Pill - Now at the bottom of the flow */}
       <footer className="pb-16 pt-8 flex justify-center relative z-20">
